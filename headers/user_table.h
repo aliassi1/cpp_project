@@ -46,7 +46,7 @@ public:
             if (user.username == username) return false; // already exists
         }
         std::string hashed_password = sha256(password);
-        users.emplace_back(username, password);
+        users.emplace_back(username, hashed_password);
         save_users();
         return true;
     }
@@ -54,7 +54,7 @@ public:
     bool login(const std::string& username, const std::string& password) {
         std::string hashed_password = sha256(password);
         for (const auto& user : users) {
-            if (user.username == username && user.password == password) return true;
+            if (user.username == username && user.password == hashed_password) return true;
         }
         return false;
     }
