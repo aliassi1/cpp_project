@@ -1,5 +1,6 @@
 #include <iostream>
 #include "headers/interface.hpp"
+#include "headers/member_interface.hpp"
 #include "headers/user_table.h"
 #include "headers/sha256.h"
 #include <conio.h>  // For masking password input (Windows only)
@@ -7,7 +8,7 @@
 #include <stdexcept>
 
 const std::string ADMIN_USERNAME = "admin";
-const std::string ADMIN_HASH = "713bfda78870bf9d1b261f565286f85e97ee614efe5f0faf7c34e7ca4f65baca"; // SHA-256 for "adminpass"
+const std::string ADMIN_PASSWORD = "adminpass";
 
 // Input validation functions
 bool is_valid_username(const std::string& username) {
@@ -24,52 +25,35 @@ bool is_valid_username(const std::string& username) {
     return true;
 }
 
-bool is_valid_password(const std::string& password) {
-    if (password.empty()) {
-        std::cout << "Password cannot be empty.\n";
-        return false;
-    }
-    if (password.length() < 6) {
-        std::cout << "Password must be at least 6 characters long.\n";
-        return false;
-    }
-    return true;
-}
-
 std::string get_hidden_input() {
-    std::string password;
+    std::string input;
     char ch;
     while ((ch = _getch()) != '\r') {  // until Enter key
         if (ch == '\b') {
-            if (!password.empty()) {
+            if (!input.empty()) {
                 std::cout << "\b \b";
-                password.pop_back();
+                input.pop_back();
             }
         } else {
-            password += ch;
+            input += ch;
             std::cout << '*';
         }
     }
     std::cout << std::endl;
-    return password;
+    return input;
 }
 
-int get_valid_choice() {
-    int choice;
-    while (true) {
-        std::cout << "1. Sign Up\n2. Sign In\nEnter choice: ";
-        if (!(std::cin >> choice)) {
-            std::cin.clear();
-            std::cin.ignore(std::numeric_limits<std::streamsize>::max(), '\n');
-            std::cout << "Please enter a valid number.\n";
-            continue;
-        }
-        if (choice != 1 && choice != 2) {
-            std::cout << "Please enter either 1 or 2.\n";
-            continue;
-        }
-        return choice;
-    }
+// Create a username from a name
+std::string create_username(const std::string& name) {
+    std::string username = name;
+    // Convert to lowercase
+    std::transform(username.begin(), username.end(), username.begin(), ::tolower);
+    // Replace spaces with underscores
+    std::replace(username.begin(), username.end(), ' ', '_');
+    // Remove any non-alphanumeric characters
+    username.erase(std::remove_if(username.begin(), username.end(), 
+                  [](char c) { return !std::isalnum(c) && c != '_'; }), username.end());
+    return username;
 }
 
 int main() {
@@ -77,11 +61,32 @@ int main() {
         // Initialize the customer table with SQLite database
         cust_table table("test.db");
         
+        // Load customer data from database
+        std::cout << "Loading customer data...\n";
+        table.read_data();
+        std::cout << "Customer data loaded successfully.\n\n";
+        
+        // Create user accounts for existing customers
+        UserTable user_table;
+        int accounts_created = 0;
+        
+        std::cout << "Creating user accounts for existing customers...\n";
+        for (const auto& [id, cust] : table.hashtable) {
+            std::string username = create_username(cust.name);
+            if (user_table.add_user(username, cust.phone)) {
+                std::cout << "Created account for " << cust.name << " with username: " << username << "\n";
+                accounts_created++;
+            }
+        }
+        std::cout << "Created " << accounts_created << " user accounts.\n\n";
+        
         while (true) {
             try {
-                UserTable user_table;
-                std::string username, password;
-                int choice = get_valid_choice();
+                std::string username, phone;
+                
+                std::cout << "\n+==================================================+\n";
+                std::cout << "|                   GYM LOGIN PORTAL                 |\n";
+                std::cout << "+==================================================+\n\n";
 
                 // Get and validate username
                 do {
@@ -89,51 +94,36 @@ int main() {
                     std::cin >> username;
                 } while (!is_valid_username(username));
 
-                // Get and validate password
-                do {
-                    std::cout << "Password: ";
-                    password = get_hidden_input();
-                } while (!is_valid_password(password));
+                // Get phone number/password
+                std::cout << "Phone Number/Password: ";
+                phone = get_hidden_input();
 
-                std::string hashed = sha256(password);
-
-                if (choice == 1) {
-                    if (username == ADMIN_USERNAME) {
-                        std::cout << "Cannot sign up as admin. Try another username.\n";
-                        continue;
+                try {
+                    if (username == ADMIN_USERNAME && phone == ADMIN_PASSWORD) {
+                        std::cout << "Admin login successful!\n";
+                        interface admin_menu(table);
+                        admin_menu.show_interface();
                     }
-
-                    try {
-                        if (user_table.signup(username, password)) {
-                            std::cout << "Sign Up Successful!\n";
-                        } else {
-                            std::cout << "Username already exists. Try again.\n";
-                        }
-                    } catch (const std::exception& e) {
-                        std::cerr << "Error during signup: " << e.what() << std::endl;
-                    }
-                    continue;
-                } 
-                else if (choice == 2) {
-                    try {
-                        if (username == ADMIN_USERNAME && hashed == ADMIN_HASH) {
-                            std::cout << "Admin login successful!\n";
-                            interface admin_menu(table);
-                            admin_menu.show_interface();
-                        }
-                        else if (user_table.login(username, password)) {
+                    else {
+                        // Debug output
+                        std::cout << "Attempting member login...\n";
+                        std::cout << "Username: " << username << "\n";
+                        std::cout << "Phone: " << phone << "\n";
+                        
+                        if (user_table.login(username, phone)) {
                             std::cout << "Member login successful!\n";
-                            interface member_menu(table);
-                            member_menu.show_member_view(username);
+                            member_interface member_menu(table, username);
+                            member_menu.show_interface();
                         } 
                         else {
                             std::cout << "Invalid credentials.\n";
+                            std::cout << "Please make sure you're using your registered username and phone number.\n";
                             continue;
                         }
-                    } catch (const std::exception& e) {
-                        std::cerr << "Error during login: " << e.what() << std::endl;
-                        continue;
                     }
+                } catch (const std::exception& e) {
+                    std::cerr << "Error during login: " << e.what() << std::endl;
+                    continue;
                 }
 
                 std::string again;

@@ -22,42 +22,64 @@ public:
     void load_users() {
         users.clear();
         std::ifstream file(filename);
-        std::string line, username, password;
+        if (!file.is_open()) {
+            std::cout << "No existing user data file found. Creating new one.\n";
+            return;
+        }
+        
+        std::string line, username, password, phone;
         while (std::getline(file, line)) {
             std::stringstream ss(line);
             std::getline(ss, username, ',');
             std::getline(ss, password, ',');
-            users.emplace_back(username, password);
+            std::getline(ss, phone, ',');
+            users.emplace_back(username, password, phone);
+            std::cout << "Loaded user: " << username << " with phone: " << phone << "\n";
         }
+        file.close();
     }
 
     void save_users() {
         std::ofstream file(filename);
         for (const auto& user : users) {
-            file << user.username << "," << user.password << "\n";
+            file << user.username << "," << user.password << "," << user.phone_number << "\n";
         }
+        file.close();
     }
 
-    bool signup(const std::string& username, const std::string& password) {
+    bool add_user(const std::string& username, const std::string& phone) {
         if (username == "admin") return false; // prevent admin registration
 
         for (const auto& user : users) {
             if (user.username == username) return false; // already exists
         }
 
-        std::string hashed_password = sha256(password);
-        users.emplace_back(username, hashed_password);
+        users.emplace_back(username, "", phone); // Empty password since we're using phone for login
         save_users();
+        std::cout << "Added user: " << username << " with phone: " << phone << "\n";
         return true;
     }
 
-    bool login(const std::string& username, const std::string& password) {
-        std::string hashed_password = sha256(password);
+    bool login(const std::string& username, const std::string& phone) {
+        std::cout << "Checking login for username: " << username << " and phone: " << phone << "\n";
         for (const auto& user : users) {
-            if (user.username == username && user.password == hashed_password)
+            std::cout << "Comparing with stored user: " << user.username << " and phone: " << user.phone_number << "\n";
+            if (user.username == username && user.phone_number == phone) {
+                std::cout << "Login match found!\n";
                 return true;
+            }
         }
+        std::cout << "No matching user found.\n";
         return false;
+    }
+
+    std::string get_phone(const std::string& username) {
+        for (const auto& user : users) {
+            if (user.username == username) {
+                return user.phone_number;
+            }
+        }
+        return "";
     }
 };
 

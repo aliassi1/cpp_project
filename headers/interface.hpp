@@ -66,12 +66,7 @@ bool is_valid_status(const std::string& status) {
         std::cout << "Status cannot be empty.\n";
         return false;
     }
-    // Check if status is one of the allowed values
-    if (status != "Active" && status != "Inactive" && status != "Paused") {
-        std::cout << "Status must be either Active, Inactive, or Paused.\n";
-        return false;
-    }
-    return true;
+    return (status == "Active" || status == "Inactive" || status == "Paused");
 }
 
 // Add a new customer
@@ -115,8 +110,10 @@ void interface::handle_add_cust() {
                 std::cout << "Sessions purchased must be a positive number.\n";
                 std::cin.clear();
                 std::cin.ignore(std::numeric_limits<std::streamsize>::max(), '\n');
+                continue;
             }
-        } while (sessions_purchased <= 0);
+            break;
+        } while (true);
 
         std::cin.ignore();
 
@@ -133,11 +130,13 @@ void interface::handle_add_cust() {
                 std::cout << "Total paid must be a non-negative number.\n";
                 std::cin.clear();
                 std::cin.ignore(std::numeric_limits<std::streamsize>::max(), '\n');
+                continue;
             }
-        } while (total_paid < 0);
+            break;
+        } while (true);
 
         customer new_cust(last_id + 1, name, phone, city, expiry_date,
-                        sessions_purchased, status, total_paid);
+                         sessions_purchased, status, total_paid);
         customer_table.insert_row(last_id + 1, new_cust);
         customer_table.write_data();
         std::cout << "✅ Member added successfully.\n";
@@ -237,56 +236,41 @@ void interface::handle_update_cust() {
                 do {
                     std::cout << "Enter new name (press Enter to keep current): ";
                     std::getline(std::cin, name);
-                    if (!name.empty() && !is_valid_name(name)) {
-                        continue;
-                    }
-                    if (!name.empty()) search->second.name = name;
-                    break;
-                } while (true);
+                    if (name.empty()) break;
+                } while (!is_valid_name(name));
+                if (!name.empty()) search->second.name = name;
 
                 // Update phone
                 do {
                     std::cout << "Enter new phone (press Enter to keep current): ";
                     std::getline(std::cin, phone);
-                    if (!phone.empty() && !is_valid_phone(phone)) {
-                        continue;
-                    }
-                    if (!phone.empty()) search->second.phone = phone;
-                    break;
-                } while (true);
+                    if (phone.empty()) break;
+                } while (!is_valid_phone(phone));
+                if (!phone.empty()) search->second.phone = phone;
 
                 // Update city
                 do {
                     std::cout << "Enter new city (press Enter to keep current): ";
                     std::getline(std::cin, city);
-                    if (!city.empty() && !is_valid_city(city)) {
-                        continue;
-                    }
-                    if (!city.empty()) search->second.city = city;
-                    break;
-                } while (true);
+                    if (city.empty()) break;
+                } while (!is_valid_city(city));
+                if (!city.empty()) search->second.city = city;
 
                 // Update expiry date
                 do {
                     std::cout << "Enter new expiry date YYYY-MM-DD (press Enter to keep current): ";
                     std::getline(std::cin, expiry_date);
-                    if (!expiry_date.empty() && !is_valid_date(expiry_date)) {
-                        continue;
-                    }
-                    if (!expiry_date.empty()) search->second.expiry_date = expiry_date;
-                    break;
-                } while (true);
+                    if (expiry_date.empty()) break;
+                } while (!is_valid_date(expiry_date));
+                if (!expiry_date.empty()) search->second.expiry_date = expiry_date;
 
                 // Update status
                 do {
                     std::cout << "Enter new status (Active/Inactive/Paused) (press Enter to keep current): ";
                     std::getline(std::cin, status);
-                    if (!status.empty() && !is_valid_status(status)) {
-                        continue;
-                    }
-                    if (!status.empty()) search->second.status = status;
-                    break;
-                } while (true);
+                    if (status.empty()) break;
+                } while (!is_valid_status(status));
+                if (!status.empty()) search->second.status = status;
 
                 customer_table.write_data();
                 std::cout << "✅ Member information updated successfully.\n";
@@ -298,34 +282,34 @@ void interface::handle_update_cust() {
                 // Update sessions purchased
                 do {
                     std::cout << "Enter number of additional sessions to add: ";
-                    if (!(std::cin >> sessions_purchased) || sessions_purchased < 0) {
-                        std::cout << "❌ Invalid number of sessions. Must be non-negative.\n";
+                    if (!(std::cin >> sessions_purchased) || sessions_purchased <= 0) {
+                        std::cout << "Sessions must be a positive number.\n";
                         std::cin.clear();
                         std::cin.ignore(std::numeric_limits<std::streamsize>::max(), '\n');
                         continue;
                     }
-                    if (sessions_purchased > 0) {
-                        search->second.sessions_purchased += sessions_purchased;
-                        std::cout << "New total sessions: " << search->second.sessions_purchased << "\n";
-                    }
                     break;
                 } while (true);
+
+                search->second.sessions_purchased += sessions_purchased;
+                std::cout << "New total sessions: " << search->second.sessions_purchased << "\n";
 
                 // Update total paid
                 do {
                     std::cout << "Enter payment amount for the new sessions: $";
                     if (!(std::cin >> total_paid) || total_paid < 0) {
-                        std::cout << "❌ Invalid payment amount. Must be non-negative.\n";
+                        std::cout << "Payment amount must be a non-negative number.\n";
                         std::cin.clear();
                         std::cin.ignore(std::numeric_limits<std::streamsize>::max(), '\n');
                         continue;
                     }
-                    search->second.total_paid += total_paid;
-                    customer_table.write_data();
-                    std::cout << "✅ Sessions and payment updated successfully.\n";
-                    std::cout << "New total paid: $" << search->second.total_paid << "\n";
                     break;
                 } while (true);
+
+                search->second.total_paid += total_paid;
+                customer_table.write_data();
+                std::cout << "✅ Sessions and payment updated successfully.\n";
+                std::cout << "New total paid: $" << search->second.total_paid << "\n";
 
             } else if (choice == 3) {
                 std::cout << "Update cancelled.\n";

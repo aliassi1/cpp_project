@@ -8,11 +8,12 @@ class User {
 public:
     std::string username;
     std::string password;
+    std::string phone_number;
 
     User() = default;
 
-    User(std::string u, std::string p)
-        : username(u), password(p) {}
+    User(const std::string& u, const std::string& p, const std::string& ph = "") 
+        : username(u), password(p), phone_number(ph) {}
 };
 
 #endif
