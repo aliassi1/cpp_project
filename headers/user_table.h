@@ -9,9 +9,6 @@
 #include <iostream>
 #include "sha256.h"
 
-
-
-
 class UserTable {
 private:
     std::vector<User> users;
@@ -42,9 +39,12 @@ public:
     }
 
     bool signup(const std::string& username, const std::string& password) {
+        if (username == "admin") return false; // prevent admin registration
+
         for (const auto& user : users) {
             if (user.username == username) return false; // already exists
         }
+
         std::string hashed_password = sha256(password);
         users.emplace_back(username, hashed_password);
         save_users();
@@ -54,7 +54,8 @@ public:
     bool login(const std::string& username, const std::string& password) {
         std::string hashed_password = sha256(password);
         for (const auto& user : users) {
-            if (user.username == username && user.password == hashed_password) return true;
+            if (user.username == username && user.password == hashed_password)
+                return true;
         }
         return false;
     }

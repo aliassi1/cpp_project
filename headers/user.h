@@ -10,7 +10,9 @@ public:
     std::string password;
 
     User() = default;
-    User(std::string u, std::string p) : username(u), password(p) {}
+
+    User(std::string u, std::string p)
+        : username(u), password(p) {}
 };
 
 #endif

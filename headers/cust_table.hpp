@@ -9,10 +9,7 @@ Member function definitions for cust_table class
 #include <limits>
 #include "cust_table.h"
 
-// Function to get max id in customer table
-//int cust_table::get_max_id() {
-    //return hashtable.end()->first;
-//}
+// Get max id in customer table
 int cust_table::get_max_id() {
     int max_id = 0;
     for (auto it = hashtable.begin(); it != hashtable.end(); ++it) {
@@ -26,111 +23,132 @@ int cust_table::get_max_id() {
 // Print the customer table in a neatly formatted way
 void cust_table::print_table(int n_rows) {
     // Main Header
-    cout << std::left << "|" << std::setw(85) << std::setfill('-') << "-" << "|" << endl
-    << "|" << std::setw(85) << std::setfill(' ') << " " << "|" << endl
-    << "|" << std::setw(85) << "Nuts n' Bolts Customer Management System" << "|" << endl
-    << "|" << std::setw(85) << std::setfill(' ') << " " << "|" << endl;
+    std::cout << std::left << "|" << std::setw(115) << std::setfill('-') << "-" << "|" << std::endl
+              << "|" << std::setw(115) << std::setfill(' ') << " " << "|" << std::endl
+              << "|" << std::setw(115) << "Nuts n' Bolts Customer Management System" << "|" << std::endl
+              << "|" << std::setw(115) << std::setfill(' ') << " " << "|" << std::endl;
 
-    // Start headers line
-    cout << "|" << std::setw(5) << std::setfill('=') << "="
-    << "|" << std::setw(20) << "="
-    << "|" << std::setw(15) << "="
-    << "|" << std::setw(10) << "="
-    << "|" << std::setw(15) << "="
-    << "|" << std::setw(15) << "="
-    << "|" << std::setfill(' ') << endl;
+    // Start header lines
+    std::cout << "|" << std::setw(5) << std::setfill('=') << "="
+              << "|" << std::setw(20) << "="
+              << "|" << std::setw(15) << "="
+              << "|" << std::setw(15) << "="
+              << "|" << std::setw(15) << "="
+              << "|" << std::setw(10) << "="
+              << "|" << std::setw(15) << "="
+              << "|" << std::setw(15) << "="
+              << "|" << std::setfill(' ') << std::endl;
 
     // Column headers
     std::cout << std::left
-    << "|" << std::setw(5) << "ID"
-    << "|" << std::setw(20) << "Name"
-    << "|" << std::setw(15) << "City"
-    << "|" << std::setw(10) << "State"
-    << "|" << std::setw(15) << "Last Visit"
-    << "|" << std::setw(15) << "Total Sales"
-    << "|" << endl
-    << "|" << std::setw(5) << std::setfill('=') << "="
-    << "|" << std::setw(20) << "="
-    << "|" << std::setw(15) << "="
-    << "|" << std::setw(10) << "="
-    << "|" << std::setw(15) << "="
-    << "|" << std::setw(15) << "="
-    << "|" << std::setfill(' ') << endl;
+              << "|" << std::setw(5)  << "ID"
+              << "|" << std::setw(20) << "Name"
+              << "|" << std::setw(15) << "Phone"
+              << "|" << std::setw(15) << "City"
+              << "|" << std::setw(15) << "Expiry Date"
+              << "|" << std::setw(10) << "Sessions"
+              << "|" << std::setw(15) << "Status"
+              << "|" << std::setw(15) << "Total Paid"
+              << "|" << std::endl;
+
+    std::cout << "|" << std::setw(5) << std::setfill('=') << "="
+              << "|" << std::setw(20) << "="
+              << "|" << std::setw(15) << "="
+              << "|" << std::setw(15) << "="
+              << "|" << std::setw(15) << "="
+              << "|" << std::setw(10) << "="
+              << "|" << std::setw(15) << "="
+              << "|" << std::setw(15) << "="
+              << "|" << std::setfill(' ') << std::endl;
+
     int iter = 0;
-    // Print table rows
-    for (auto it = hashtable.begin(); it != hashtable.end(); ++it, ++iter) {
-            if (iter == n_rows) {
-                cout << "Showing " + std::to_string(iter) + " of " + std::to_string(hashtable.size()) + " customers." << endl;
-                break;
-            }
-            cout << std::left 
-            << "|" << std::setw(5) << it -> first 
-            << "|" << std::setw(20) << it->second.name 
-            << "|" << std::setw(15) << it->second.city
-            << "|" << std::setw(10) << it->second.state
-            << "|" << std::setw(15) << it->second.format_date()
-            << "|" << std::setw(15) << "$" + std::to_string(it->second.total_sales)
-            << "|" << endl
-            << "|" << std::setw(5) << std::setfill('-') << "-"
-            << "|" << std::setw(20) << "-"
-            << "|" << std::setw(15) << "-"
-            << "|" << std::setw(10) << "-"
-            << "|" << std::setw(15) << "-"
-            << "|" << std::setw(15) << "-"
-            << "|"
-            << std::setfill(' ')
-            << endl;
+
+    // Print rows
+    for (const auto& [id, cust] : hashtable) {
+        if (iter == n_rows) {
+            std::cout << "Showing " << iter << " of " << hashtable.size() << " customers.\n";
+            break;
         }
+
+        std::cout << "|" << std::setw(5)  << cust.id
+                  << "|" << std::setw(20) << cust.name
+                  << "|" << std::setw(15) << cust.phone
+                  << "|" << std::setw(15) << cust.city
+                  << "|" << std::setw(15) << cust.expiry_date
+                  << "|" << std::setw(10) << cust.sessions_used
+                  << "|" << std::setw(15) << cust.status
+                  << "|" << std::setw(15) << ("$" + std::to_string(cust.total_paid))
+                  << "|" << std::endl;
+
+        std::cout << "|" << std::setw(5) << std::setfill('-') << "-"
+                  << "|" << std::setw(20) << "-"
+                  << "|" << std::setw(15) << "-"
+                  << "|" << std::setw(15) << "-"
+                  << "|" << std::setw(15) << "-"
+                  << "|" << std::setw(10) << "-"
+                  << "|" << std::setw(15) << "-"
+                  << "|" << std::setw(15) << "-"
+                  << "|" << std::setfill(' ') << std::endl;
+
+        ++iter;
+    }
+
     if (iter >= hashtable.size()) {
-        cout << "Showing all customers" << endl;
+        std::cout << "Showing all customers" << std::endl;
     }
 }
 
 // Write customer table to local db
 void cust_table::write_data() {
-    // Use of stream to output to filename, truncate before writing
-    std::ofstream ofs;
-    // Open stream with trunc option to erase old data
-    ofs.open(cust_table::filename,ofstream::trunc);
-    for (auto it = hashtable.begin(); it != hashtable.end(); ++it) {
-            // Write each item in cust table to csv
-            ofs << it->first << ',';
-            ofs << it->second.name << ',';
-            ofs << it->second.city << ',';
-            ofs << it->second.state << ',';
-            ofs << it->second.last_visit << ',';
-            ofs << it->second.total_sales;
-            ofs << endl;
-        }
-    ofs.close();
+    std::ofstream file(filename);
+    for (const auto& [id, cust] : hashtable) {
+        file << cust.id << ","
+             << cust.name << ","
+             << cust.phone << ","
+             << cust.city << ","
+             << cust.expiry_date << ","
+             << cust.sessions_purchased << ","
+             << cust.sessions_used << ","
+             << cust.status << ","
+             << cust.total_paid << "\n";
+    }
 }
 
-// Read customer data from local db
 void cust_table::read_data() {
-    std::ifstream ifs;
-    std::string line;
-    ifs.open(cust_table::filename,ios::in);
-    while (std::getline(ifs,line)) {
-        std::stringstream ss(line);
-        std::string id,name,city,state,last_visit,total_sales;
+    std::ifstream file(filename);
+    if (!file) return;
 
-        std::getline(ss,id,',');
-        std::getline(ss,name,',');
-        std::getline(ss,city,',');
-        std::getline(ss,state,',');
-        std::getline(ss,last_visit,',');
-        std::getline(ss,total_sales,',');
-        
-        customer cust(std::stoi(id),name,std::stoi(last_visit),std::stoi(total_sales),city,state);
-        cust_table::insert_row(std::stoi(id),cust);
+    std::string line;
+    while (std::getline(file, line)) {
+        std::stringstream ss(line);
+        std::string id_str, name, phone, city, expiry_date;
+        std::string sessions_purchased_str, sessions_used_str, status, total_paid_str;
+
+        std::getline(ss, id_str, ',');
+        std::getline(ss, name, ',');
+        std::getline(ss, phone, ',');
+        std::getline(ss, city, ',');
+        std::getline(ss, expiry_date, ',');
+        std::getline(ss, sessions_purchased_str, ',');
+        std::getline(ss, sessions_used_str, ',');
+        std::getline(ss, status, ',');
+        std::getline(ss, total_paid_str, ',');
+
+        int id = std::stoi(id_str);
+        int sessions_purchased = std::stoi(sessions_purchased_str);
+        int sessions_used = std::stoi(sessions_used_str);
+        float total_paid = std::stof(total_paid_str);
+
+        customer c(id, name, phone, city, expiry_date, sessions_purchased, status, total_paid);
+        c.sessions_used = sessions_used; // set separately
+        hashtable[id] = c;
     }
 }
 
-// Get total sales of all customers
-int cust_table::get_total_sales() {
-    int total_sales_all = 0;
-    for (auto it = hashtable.begin(); it != hashtable.end(); ++it) {
-        total_sales_all += it->second.total_sales;
+float cust_table::get_total_paid() {
+    float total = 0.0f;
+    for (const auto& [_, cust] : hashtable) {
+        total += cust.total_paid;
     }
-    return total_sales_all;
+    return total;
 }

@@ -12,25 +12,29 @@ Inherits from base table class */
 
 using namespace std;
 
-class cust_table : public table<int,customer>  {
-    public:
-        std::string filename;
+class cust_table : public table<int, customer> {
+public:
+    std::string filename;
 
-        // Constructor - assign params and fill table with data on class creation
-        cust_table(std::string i_filename)
-        :filename(i_filename)
-        {cust_table::read_data();};
-        // Destructor - save the data to local db and empty out in memory table
-        ~cust_table() {
-            write_data();
-            hashtable.clear();
-        }
-        // Member functions
-        void print_table(int n_rows);
-        void read_data();
-        void write_data();
-        int get_max_id();
-        int get_total_sales();
+    // Constructor - assign params and fill table with data on class creation
+    cust_table(std::string i_filename)
+        : filename(i_filename)
+    {
+        cust_table::read_data();
+    };
+
+    // Destructor - save the data to local db and empty out in-memory table
+    ~cust_table() {
+        write_data();
+        hashtable.clear();
+    }
+
+    // Member functions
+    void print_table(int n_rows);
+    void read_data();
+    void write_data();
+    int get_max_id();
+    float get_total_paid();  // ✅ changed from int to float and renamed
 };
 
 // Because this class inherits from a template class, we include class definitions script at bottom

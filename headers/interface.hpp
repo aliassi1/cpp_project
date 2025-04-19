@@ -1,232 +1,268 @@
-/* interface.hpp
-interface member function definitions */
 #include "interface.h"
+#include <limits>
+#include <iomanip>
 
-// This function handles adding a new customer to the customer table
+// Add a new customer
 void interface::handle_add_cust() {
-    std::string name, city, state;
-    int last_visit, total_sales;
+    std::string name, phone, city, expiry_date, status;
+    int sessions_purchased;
+    float total_paid;
     int last_id = customer_table.get_max_id();
-    cin.ignore (std::numeric_limits<std::streamsize>::max(), '\n'); 
-    cout << "Enter Customer first and last name: ";
-    std::getline(cin,name);
-    cout << "Enter Customer City: ";
-    std::getline(cin,city,'\n');
-    cout << "Enter Customer State: ";
-    std::getline(cin,state,'\n');
-    cout << "Enter Customer's Last Visit (YYYYMMDD): ";
-    cin >> last_visit;
-    cout << "Enter Customer's Total Sales: ";
-    cin >> total_sales;
-    customer new_cust(last_id+1,name,last_visit,total_sales,city,state);
-    // The id of the new customer should be the max existing ID incremented by 1
-    customer_table.insert_row(last_id+1,new_cust);
+
+    std::cin.ignore(std::numeric_limits<std::streamsize>::max(), '\n');
+    std::cout << "Enter member full name: ";
+    std::getline(std::cin, name);
+    std::cout << "Enter phone number: ";
+    std::getline(std::cin, phone);
+    std::cout << "Enter city: ";
+    std::getline(std::cin, city);
+    std::cout << "Enter membership expiry date (YYYY-MM-DD): ";
+    std::getline(std::cin, expiry_date);
+    std::cout << "Enter number of sessions purchased: ";
+    std::cin >> sessions_purchased;
+    std::cin.ignore();
+    std::cout << "Enter membership status (Active/Inactive/Paused): ";
+    std::getline(std::cin, status);
+    std::cout << "Enter total money paid: $";
+    std::cin >> total_paid;
+
+    customer new_cust(last_id + 1, name, phone, city, expiry_date,
+                      sessions_purchased, status, total_paid);
+    customer_table.insert_row(last_id + 1, new_cust);
+    std::cout << "✅ Member added successfully.\n";
 }
 
-// Function that handles deleting a customer from the table
+// Delete a customer
 void interface::handle_delete_cust() {
     int delete_id;
-    cout << "Enter customer ID to delete: ";
-    cin >> delete_id;
-    // Search table for the id
+    std::cout << "Enter customer ID to delete: ";
+    std::cin >> delete_id;
+
     auto search = customer_table.hashtable.find(delete_id);
-    // If the id is found then carry out process else warn user
     if (search != customer_table.hashtable.end()) {
-        cout << "Found customer ID " << search->first << " with the following information: " << endl;
-        cout << "Name: " << search->second.name << endl;
-        cout << "City: " << search->second.city << endl;
-        cout << "State: " << search->second.state << endl;
-        cout << "Last Visit: " << search->second.format_date() << endl;
-        cout << "Total Sales: $" << search->second.total_sales << endl;
-        cout << "Are you sure you want to delete this customer? (Y or N)";
-        string ans;
-        cin >> ans;
-        if (ans == "Y") {
-            customer_table.hashtable.erase(search->first);
-            cout << "Customer deleted." << endl;
+        const customer& c = search->second;
+        std::cout << "Found member:\n";
+        std::cout << "Name: " << c.name << "\n";
+        std::cout << "Phone: " << c.phone << "\n";
+        std::cout << "City: " << c.city << "\n";
+        std::cout << "Expiry: " << c.expiry_date << "\n";
+        std::cout << "Sessions Purchased: " << c.sessions_purchased << "\n";
+        std::cout << "Sessions Used: " << c.sessions_used << "\n";
+        std::cout << "Status: " << c.status << "\n";
+        std::cout << "Total Paid: $" << c.total_paid << "\n";
+
+        std::string confirm;
+        std::cout << "Are you sure you want to delete this member? (Y/N): ";
+        std::cin >> confirm;
+        if (confirm == "Y" || confirm == "y") {
+            customer_table.hashtable.erase(delete_id);
+            std::cout << "✅ Member deleted.\n";
         } else {
-            cout << "Customer not deleted." << endl;
+            std::cout << "Deletion cancelled.\n";
         }
     } else {
-        cout << "No customer ID " +  std::to_string(delete_id) + " exists." << endl;
+        std::cout << "❌ No member with ID " << delete_id << " found.\n";
     }
 }
 
-// Function to handle updating customer
+// Update a customer
 void interface::handle_update_cust() {
     int update_id;
-    cout << "Enter customer ID to update: ";
-    cin >> update_id;
-    
-    // Search for customer to update - if found carry out action, else warn user
+    std::cout << "Enter customer ID to update: ";
+    std::cin >> update_id;
+
     auto search = customer_table.hashtable.find(update_id);
     if (search != customer_table.hashtable.end()) {
-        std::string name, city, state;
-        int last_visit, total_sales;
+        std::string name, phone, city, expiry_date, status;
+        int sessions_purchased;
+        float transaction;
 
-        cout << "Found customer ID " << search->first << endl;
+        std::cout << "Found member ID: " << update_id << "\n";
 
-        // Show current values
-        cout << "Current name: " << search->second.name << endl;
-        cout << "Current city: " << search->second.city << endl;
-        cout << "Current state: " << search->second.state << endl;
-        cout << "Current last visit: " << search->second.last_visit << endl;
-        cout << "Current total sales: " << search->second.total_sales << endl;
-
-        // Ask if user wants to update customer info or add a transaction
-        cout << "Would you like to: " << endl;
-        cout << "1 - Update Customer Information" << endl;
-        cout << "2 - Add a Transaction (Update Total Sales)" << endl;
-        cout << "3 - Cancel update" << endl;
+        std::cout << "1 - Update Member Information\n";
+        std::cout << "2 - Add Payment\n";
+        std::cout << "3 - Cancel\n";
 
         int choice;
-        cin >> choice;
-        cin.ignore(); // To clear the input buffer
+        std::cin >> choice;
+        std::cin.ignore();
 
-        switch (choice) {
-            case 1:  // Update Customer Information (without total sales)
-                cout << "Which column would you like to update?" << endl;
-                cout << "1 - Name" << endl;
-                cout << "2 - City" << endl;
-                cout << "3 - State" << endl;
-                cout << "4 - Last Visit" << endl;
-                cout << "5 - Cancel update" << endl;
+        if (choice == 1) {
+            std::cout << "Select field to update:\n";
+            std::cout << "1 - Name\n2 - Phone\n3 - City\n4 - Expiry Date\n5 - Status\n6 - Sessions Purchased\n7 - Cancel\n";
 
-                int info_choice;
-                cin >> info_choice;
-                cin.ignore(); // To clear the input buffer
+            int field;
+            std::cin >> field;
+            std::cin.ignore();
 
-                switch (info_choice) {
-                    case 1:  // Update Name
-                        cout << "Enter updated name (Currently: " << search->second.name << "): ";
-                        getline(cin, name);
-                        search->second.name = name;
-                        break;
-                    case 2:  // Update City
-                        cout << "Enter updated city (Currently: " << search->second.city << "): ";
-                        getline(cin, city);
-                        search->second.city = city;
-                        break;
-                    case 3:  // Update State
-                        cout << "Enter updated state (Currently: " << search->second.state << "): ";
-                        getline(cin, state);
-                        search->second.state = state;
-                        break;
-                    case 4:  // Update Last Visit
-                        cout << "Enter updated last visit (YYYYMMDD) (Currently: " << search->second.last_visit << "): ";
-                        cin >> last_visit;
-                        search->second.last_visit = last_visit;
-                        break;
-                    case 5:  // Cancel Update
-                        cout << "Update cancelled." << endl;
-                        return;
-                    default:
-                        cout << "Invalid option, no changes made." << endl;
-                        return;
-                }
-                cout << "Customer " << search->first << " updated." << endl;
-                break;
+            switch (field) {
+                case 1:
+                    std::cout << "New Name: ";
+                    std::getline(std::cin, name);
+                    search->second.name = name;
+                    break;
+                case 2:
+                    std::cout << "New Phone: ";
+                    std::getline(std::cin, phone);
+                    search->second.phone = phone;
+                    break;
+                case 3:
+                    std::cout << "New City: ";
+                    std::getline(std::cin, city);
+                    search->second.city = city;
+                    break;
+                case 4:
+                    std::cout << "New Expiry Date (YYYY-MM-DD): ";
+                    std::getline(std::cin, expiry_date);
+                    search->second.expiry_date = expiry_date;
+                    break;
+                case 5:
+                    std::cout << "New Status: ";
+                    std::getline(std::cin, status);
+                    search->second.status = status;
+                    break;
+                case 6:
+                    std::cout << "Enter updated number of sessions purchased: ";
+                    std::cin >> sessions_purchased;
+                    search->second.sessions_purchased = sessions_purchased;
+                    break;
+                default:
+                    std::cout << "Update cancelled.\n";
+                    return;
+            }
+            std::cout << "✅ Member updated.\n";
 
-            case 2:  // Add a Transaction (Update Total Sales)
-                cout << "Enter the amount of the transaction to add to total sales: ";
-                cin >> total_sales;
-                search->second.total_sales += total_sales;  // Update total sales
-                cout << "Transaction added. Updated Total Sales: $" << search->second.total_sales << endl;
-                break;
-
-            case 3:  // Cancel Update
-                cout << "Update cancelled." << endl;
-                return;
-
-            default:
-                cout << "Invalid option, no changes made." << endl;
-                return;
+        } else if (choice == 2) {
+            std::cout << "Add amount paid: $";
+            std::cin >> transaction;
+            search->second.total_paid += transaction;
+            std::cout << "✅ Payment recorded. Total Paid: $" << search->second.total_paid << "\n";
+        } else {
+            std::cout << "Update cancelled.\n";
         }
+
     } else {
-        cout << "No customer ID " +  std::to_string(update_id) + " exists." << endl;
+        std::cout << "❌ No customer with ID " << update_id << " found.\n";
     }
 }
 
-
-// Function that handles showing options menu to user
-// In interface.hpp, update the show_options method to include the search option:
-
+// Show admin options
 void interface::show_options() {
-    cout << "What would you like to do?" << endl;
-    cout << "1 - Add Customer" << endl
-         << "2 - Update Customer" << endl
-         << "3 - Show Customers Table" << endl
-         << "4 - Delete Customer" << endl
-         << "5 - Show total sales" << endl
-         << "6 - Search Customer by Name" << endl  // New search option
-         << "7 - Exit Program" << endl;
+    std::cout << "\nWhat would you like to do?\n";
+    std::cout << "1 - Add Member\n"
+              << "2 - Update Member\n"
+              << "3 - Show All Members\n"
+              << "4 - Delete Member\n"
+              << "5 - Show Total Revenue\n"
+              << "6 - Search Member by Name\n"
+              << "7 - Log Member Check-in\n"
+              << "8 - Exit\n";
 }
 
-
-
-// Function that handles showing user interface
+// Admin interface loop
 void interface::show_interface() {
     customer_table.print_table(customer_table.get_max_id());
     int choice;
-    // Run until user quits
-    // In interface.hpp, update the main loop to handle the new option:
+    do {
+        show_options();
+        std::cin >> choice;
 
-do {
-    show_options();
-    cin >> choice;
-
-    if (choice == 1) {
-        handle_add_cust();
-    } else if (choice == 2) {
-        handle_update_cust();
-    } else if (choice == 3) {
-        cout << "Select number of customers to show (Enter '*' to show all): " << endl;
-        string n_show;
-        cin >> n_show;
-        if (n_show == "*") {
-            customer_table.print_table(customer_table.get_max_id());
-        } else {
-            customer_table.print_table(stoi(n_show));
+        if (choice == 1) handle_add_cust();
+        else if (choice == 2) handle_update_cust();
+        else if (choice == 3) {
+            std::string input;
+            std::cout << "How many members to show? (Enter '*' for all): ";
+            std::cin >> input;
+            if (input == "*") customer_table.print_table(customer_table.get_max_id());
+            else customer_table.print_table(std::stoi(input));
         }
-    } else if (choice == 4) {
-        handle_delete_cust();
-    } else if (choice == 5) {
-        cout << "Total company sales are: $"
-             << customer_table.get_total_sales() << endl;
-    } else if (choice == 6) { // New search customer option
-        search_customer();
-    } else if (choice == 7) {  // Quit program
-        continue;
-    } else {
-        cout << "Please enter a number listed from the menu options (1-7)" << endl; 
-    }
-} while (choice != 7);
-
+        else if (choice == 4) handle_delete_cust();
+        else if (choice == 5) {
+            std::cout << "Total revenue from members: $"
+                      << customer_table.get_total_paid() << "\n";
+        }
+        else if (choice == 6) search_customer();
+        else if (choice == 7) use_session();
+        else if (choice != 8) {
+            std::cout << "Invalid choice.\n";
+        }
+    } while (choice != 8);
 }
 
+// Search member by name
 void interface::search_customer() {
-    string search_name;
-    cout << "Enter the customer name to search for: ";
-    cin.ignore();
-    getline(cin, search_name);
+    std::string search_name;
+    std::cout << "Enter member name to search: ";
+    std::cin.ignore();
+    std::getline(std::cin, search_name);
 
     bool found = false;
-    // Iterate through the customer table to find the name
-    for (auto it = customer_table.hashtable.begin(); it != customer_table.hashtable.end(); ++it) {
-        if (it->second.name == search_name) {
-            cout << "Customer Found!" << endl;
-            cout << "ID: " << it->first << endl;
-            cout << "Name: " << it->second.name << endl;
-            cout << "City: " << it->second.city << endl;
-            cout << "State: " << it->second.state << endl;
-            cout << "Last Visit: " << it->second.format_date() << endl;
-            cout << "Total Sales: $" << it->second.total_sales << endl;
+    for (const auto& [id, c] : customer_table.hashtable) {
+        if (c.name == search_name) {
+            std::cout << "\nMember Found:\n"
+                      << "ID: " << c.id << "\n"
+                      << "Name: " << c.name << "\n"
+                      << "Phone: " << c.phone << "\n"
+                      << "City: " << c.city << "\n"
+                      << "Expiry: " << c.expiry_date << "\n"
+                      << "Sessions Purchased: " << c.sessions_purchased << "\n"
+                      << "Sessions Used: " << c.sessions_used << "\n"
+                      << "Status: " << c.status << "\n"
+                      << "Total Paid: $" << c.total_paid << "\n";
             found = true;
             break;
         }
     }
 
     if (!found) {
-        cout << "Customer with the name '" << search_name << "' not found." << endl;
+        std::cout << "❌ Member not found.\n";
+    }
+}
+
+// Member-only view
+void interface::show_member_view(const std::string& username) {
+    std::cout << "\n==== Member Dashboard ====\n";
+
+    bool found = false;
+    for (const auto& [id, m] : customer_table.hashtable) {
+        if (m.name == username) {
+            std::cout << "Member ID: " << m.id << "\n"
+                      << "Name: " << m.name << "\n"
+                      << "Phone: " << m.phone << "\n"
+                      << "City: " << m.city << "\n"
+                      << "Expiry Date: " << m.expiry_date << "\n"
+                      << "Sessions Purchased: " << m.sessions_purchased << "\n"
+                      << "Sessions Used: " << m.sessions_used << "\n"
+                      << "Status: " << m.status << "\n"
+                      << "Total Paid: $" << m.total_paid << "\n";
+            found = true;
+            break;
+        }
+    }
+
+    if (!found) {
+        std::cout << "❌ No data found for member: " << username << "\n";
+    }
+}
+
+// Check-in: use session
+void interface::use_session() {
+    int id;
+    std::cout << "Enter member ID to check in: ";
+    std::cin >> id;
+
+    auto it = customer_table.hashtable.find(id);
+    if (it != customer_table.hashtable.end()) {
+        if (it->second.sessions_used < it->second.sessions_purchased) {
+            it->second.sessions_used++;
+            std::cout << "✅ Check-in complete. "
+                      << "Used " << it->second.sessions_used
+                      << " / Purchased " << it->second.sessions_purchased << "\n";
+            customer_table.write_data();
+        } else {
+            std::cout << "❌ No sessions remaining. Member must purchase more sessions.\n";
+        }
+    } else {
+        std::cout << "❌ Member ID not found.\n";
     }
 }
