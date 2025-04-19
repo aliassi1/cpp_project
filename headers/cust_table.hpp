@@ -1,150 +1,103 @@
-/*
-cust_table.hpp
-Member function definitions for cust_table class
-*/
-
-#include <fstream>
 #include <sstream>
 #include <iomanip>
 #include <limits>
 #include "cust_table.h"
+#include "../sqlite3.h"
 
-// Get max id in customer table
+// Initialize the SQLite database
+void cust_table::init_database() {
+    int rc = sqlite3_open(db_name.c_str(), &db);
+    if (rc) {
+        std::cerr << "Can't open database: " << sqlite3_errmsg(db) << std::endl;
+        return;
+    }
+
+    const char* sql = "CREATE TABLE IF NOT EXISTS customers ("
+                      "id INTEGER PRIMARY KEY, "
+                      "name TEXT, "
+                      "phone TEXT, "
+                      "city TEXT, "
+                      "expiry_date TEXT, "
+                      "sessions_purchased INTEGER, "
+                      "sessions_used INTEGER, "
+                      "status TEXT, "
+                      "total_paid REAL);";
+
+    char* errMsg = nullptr;
+    rc = sqlite3_exec(db, sql, nullptr, nullptr, &errMsg);
+    if (rc != SQLITE_OK) {
+        std::cerr << "SQL error: " << errMsg << std::endl;
+        sqlite3_free(errMsg);
+    }
+}
+
+// Write customer table to database
+void cust_table::write_data() {
+    sqlite3_exec(db, "BEGIN TRANSACTION", nullptr, nullptr, nullptr);
+
+    const char* sql = "INSERT OR REPLACE INTO customers "
+                      "(id, name, phone, city, expiry_date, sessions_purchased, sessions_used, status, total_paid) "
+                      "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?);";
+
+    sqlite3_stmt* stmt;
+    sqlite3_prepare_v2(db, sql, -1, &stmt, nullptr);
+
+    for (const auto& [id, cust] : hashtable) {
+        sqlite3_bind_int(stmt, 1, cust.id);
+        sqlite3_bind_text(stmt, 2, cust.name.c_str(), -1, SQLITE_STATIC);
+        sqlite3_bind_text(stmt, 3, cust.phone.c_str(), -1, SQLITE_STATIC);
+        sqlite3_bind_text(stmt, 4, cust.city.c_str(), -1, SQLITE_STATIC);
+        sqlite3_bind_text(stmt, 5, cust.expiry_date.c_str(), -1, SQLITE_STATIC);
+        sqlite3_bind_int(stmt, 6, cust.sessions_purchased);
+        sqlite3_bind_int(stmt, 7, cust.sessions_used);
+        sqlite3_bind_text(stmt, 8, cust.status.c_str(), -1, SQLITE_STATIC);
+        sqlite3_bind_double(stmt, 9, cust.total_paid);
+
+        sqlite3_step(stmt);
+        sqlite3_reset(stmt);
+    }
+
+    sqlite3_finalize(stmt);
+    sqlite3_exec(db, "COMMIT", nullptr, nullptr, nullptr);
+}
+
+// Read customer data from database
+void cust_table::read_data() {
+    const char* sql = "SELECT * FROM customers;";
+    sqlite3_stmt* stmt;
+    sqlite3_prepare_v2(db, sql, -1, &stmt, nullptr);
+
+    while (sqlite3_step(stmt) == SQLITE_ROW) {
+        int id = sqlite3_column_int(stmt, 0);
+        std::string name = reinterpret_cast<const char*>(sqlite3_column_text(stmt, 1));
+        std::string phone = reinterpret_cast<const char*>(sqlite3_column_text(stmt, 2));
+        std::string city = reinterpret_cast<const char*>(sqlite3_column_text(stmt, 3));
+        std::string expiry_date = reinterpret_cast<const char*>(sqlite3_column_text(stmt, 4));
+        int sessions_purchased = sqlite3_column_int(stmt, 5);
+        int sessions_used = sqlite3_column_int(stmt, 6);
+        std::string status = reinterpret_cast<const char*>(sqlite3_column_text(stmt, 7));
+        float total_paid = static_cast<float>(sqlite3_column_double(stmt, 8));
+
+        customer cust(id, name, phone, city, expiry_date, sessions_purchased, status, total_paid);
+        cust.sessions_used = sessions_used;
+        insert_row(id, cust);
+    }
+
+    sqlite3_finalize(stmt);
+}
+
+// Get the max customer ID
 int cust_table::get_max_id() {
     int max_id = 0;
-    for (auto it = hashtable.begin(); it != hashtable.end(); ++it) {
-        if (it->second.id > max_id) {
-            max_id = it->second.id;
+    for (const auto& [id, cust] : hashtable) {
+        if (cust.id > max_id) {
+            max_id = cust.id;
         }
     }
     return max_id;
 }
 
-// Print the customer table in a neatly formatted way
-void cust_table::print_table(int n_rows) {
-    // Main Header
-    std::cout << std::left << "|" << std::setw(115) << std::setfill('-') << "-" << "|" << std::endl
-              << "|" << std::setw(115) << std::setfill(' ') << " " << "|" << std::endl
-              << "|" << std::setw(115) << "Nuts n' Bolts Customer Management System" << "|" << std::endl
-              << "|" << std::setw(115) << std::setfill(' ') << " " << "|" << std::endl;
-
-    // Start header lines
-    std::cout << "|" << std::setw(5) << std::setfill('=') << "="
-              << "|" << std::setw(20) << "="
-              << "|" << std::setw(15) << "="
-              << "|" << std::setw(15) << "="
-              << "|" << std::setw(15) << "="
-              << "|" << std::setw(10) << "="
-              << "|" << std::setw(15) << "="
-              << "|" << std::setw(15) << "="
-              << "|" << std::setfill(' ') << std::endl;
-
-    // Column headers
-    std::cout << std::left
-              << "|" << std::setw(5)  << "ID"
-              << "|" << std::setw(20) << "Name"
-              << "|" << std::setw(15) << "Phone"
-              << "|" << std::setw(15) << "City"
-              << "|" << std::setw(15) << "Expiry Date"
-              << "|" << std::setw(10) << "Sessions"
-              << "|" << std::setw(15) << "Status"
-              << "|" << std::setw(15) << "Total Paid"
-              << "|" << std::endl;
-
-    std::cout << "|" << std::setw(5) << std::setfill('=') << "="
-              << "|" << std::setw(20) << "="
-              << "|" << std::setw(15) << "="
-              << "|" << std::setw(15) << "="
-              << "|" << std::setw(15) << "="
-              << "|" << std::setw(10) << "="
-              << "|" << std::setw(15) << "="
-              << "|" << std::setw(15) << "="
-              << "|" << std::setfill(' ') << std::endl;
-
-    int iter = 0;
-
-    // Print rows
-    for (const auto& [id, cust] : hashtable) {
-        if (iter == n_rows) {
-            std::cout << "Showing " << iter << " of " << hashtable.size() << " customers.\n";
-            break;
-        }
-
-        std::cout << "|" << std::setw(5)  << cust.id
-                  << "|" << std::setw(20) << cust.name
-                  << "|" << std::setw(15) << cust.phone
-                  << "|" << std::setw(15) << cust.city
-                  << "|" << std::setw(15) << cust.expiry_date
-                  << "|" << std::setw(10) << cust.sessions_used
-                  << "|" << std::setw(15) << cust.status
-                  << "|" << std::setw(15) << ("$" + std::to_string(cust.total_paid))
-                  << "|" << std::endl;
-
-        std::cout << "|" << std::setw(5) << std::setfill('-') << "-"
-                  << "|" << std::setw(20) << "-"
-                  << "|" << std::setw(15) << "-"
-                  << "|" << std::setw(15) << "-"
-                  << "|" << std::setw(15) << "-"
-                  << "|" << std::setw(10) << "-"
-                  << "|" << std::setw(15) << "-"
-                  << "|" << std::setw(15) << "-"
-                  << "|" << std::setfill(' ') << std::endl;
-
-        ++iter;
-    }
-
-    if (iter >= hashtable.size()) {
-        std::cout << "Showing all customers" << std::endl;
-    }
-}
-
-// Write customer table to local db
-void cust_table::write_data() {
-    std::ofstream file(filename);
-    for (const auto& [id, cust] : hashtable) {
-        file << cust.id << ","
-             << cust.name << ","
-             << cust.phone << ","
-             << cust.city << ","
-             << cust.expiry_date << ","
-             << cust.sessions_purchased << ","
-             << cust.sessions_used << ","
-             << cust.status << ","
-             << cust.total_paid << "\n";
-    }
-}
-
-void cust_table::read_data() {
-    std::ifstream file(filename);
-    if (!file) return;
-
-    std::string line;
-    while (std::getline(file, line)) {
-        std::stringstream ss(line);
-        std::string id_str, name, phone, city, expiry_date;
-        std::string sessions_purchased_str, sessions_used_str, status, total_paid_str;
-
-        std::getline(ss, id_str, ',');
-        std::getline(ss, name, ',');
-        std::getline(ss, phone, ',');
-        std::getline(ss, city, ',');
-        std::getline(ss, expiry_date, ',');
-        std::getline(ss, sessions_purchased_str, ',');
-        std::getline(ss, sessions_used_str, ',');
-        std::getline(ss, status, ',');
-        std::getline(ss, total_paid_str, ',');
-
-        int id = std::stoi(id_str);
-        int sessions_purchased = std::stoi(sessions_purchased_str);
-        int sessions_used = std::stoi(sessions_used_str);
-        float total_paid = std::stof(total_paid_str);
-
-        customer c(id, name, phone, city, expiry_date, sessions_purchased, status, total_paid);
-        c.sessions_used = sessions_used; // set separately
-        hashtable[id] = c;
-    }
-}
-
+// Sum all total_paid values
 float cust_table::get_total_paid() {
     float total = 0.0f;
     for (const auto& [_, cust] : hashtable) {

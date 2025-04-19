@@ -26,6 +26,9 @@ std::string get_hidden_input() {
 }
 
 int main() {
+    // Initialize the customer table with SQLite database
+    cust_table table("test.db");
+
     while (true) {
         UserTable user_table;
         std::string username, password;
@@ -58,13 +61,11 @@ int main() {
         else if (choice == 2) {
             if (username == ADMIN_USERNAME && hashed == ADMIN_HASH) {
                 std::cout << "Admin login successful!\n";
-                cust_table table("cust_data.csv");
                 interface admin_menu(table);
                 admin_menu.show_interface();
             }
             else if (user_table.login(username, password)) {
                 std::cout << "Member login successful!\n";
-                cust_table table("cust_data.csv");
                 interface member_menu(table);
                 member_menu.show_member_view(username);
             } 

@@ -148,45 +148,84 @@ void interface::handle_update_cust() {
 
 // Show admin options
 void interface::show_options() {
-    std::cout << "\nWhat would you like to do?\n";
-    std::cout << "1 - Add Member\n"
-              << "2 - Update Member\n"
-              << "3 - Show All Members\n"
-              << "4 - Delete Member\n"
-              << "5 - Show Total Revenue\n"
-              << "6 - Search Member by Name\n"
-              << "7 - Log Member Check-in\n"
-              << "8 - Exit\n";
+
+    cout << "\n+===============================================================+" << endl;
+    cout << "|                    Fitness CUSTOMER MANAGEMENT SYSTEM           |" << endl;
+    cout << "+===============================================================+" << endl;
+    cout << "|                                                               |" << endl;
+    cout << "|  [1] > Add New Customer                                      |" << endl;
+    cout << "|  [2] > Update Customer Information                           |" << endl;
+    cout << "|  [3] > Display Customer Table                               |" << endl;
+    cout << "|  [4] > Delete Customer                                       |" << endl;
+    cout << "|  [5] > View Total Sales                                      |" << endl;
+    cout << "|  [6] > Search Customer by Name                              |" << endl;
+    cout << "|  [7] > Exit Program                                          |" << endl;
+    cout << "|                                                               |" << endl;
+    cout << "+===============================================================+" << endl;
+    cout << "\nEnter your choice (1-7): ";
 }
 
 // Admin interface loop
 void interface::show_interface() {
+    cout << "\n+===============================================================+" << endl;
+    cout << "|                    WELCOME TO CUSTOMER MANAGEMENT             |" << endl;
+    cout << "+===============================================================+\n" << endl;
+    
     customer_table.print_table(customer_table.get_max_id());
     int choice;
+
+    
     do {
         show_options();
-        std::cin >> choice;
+        cin >> choice;
 
-        if (choice == 1) handle_add_cust();
-        else if (choice == 2) handle_update_cust();
-        else if (choice == 3) {
-            std::string input;
-            std::cout << "How many members to show? (Enter '*' for all): ";
-            std::cin >> input;
-            if (input == "*") customer_table.print_table(customer_table.get_max_id());
-            else customer_table.print_table(std::stoi(input));
+        if (choice == 1) {
+            cout << "\n+===============================================================+" << endl;
+            cout << "|                    ADD NEW CUSTOMER                            |" << endl;
+            cout << "+===============================================================+\n" << endl;
+            handle_add_cust();
+        } else if (choice == 2) {
+            cout << "\n+===============================================================+" << endl;
+            cout << "|                    UPDATE CUSTOMER                             |" << endl;
+            cout << "+===============================================================+\n" << endl;
+            handle_update_cust();
+        } else if (choice == 3) {
+            cout << "\n+===============================================================+" << endl;
+            cout << "|                    DISPLAY CUSTOMERS                           |" << endl;
+            cout << "+===============================================================+\n" << endl;
+            cout << "Select number of customers to show (Enter '*' to show all): ";
+            string n_show;
+            cin >> n_show;
+            if (n_show == "*") {
+                customer_table.print_table(customer_table.get_max_id());
+            } else {
+                customer_table.print_table(stoi(n_show));
+            }
+        } else if (choice == 4) {
+            cout << "\n+===============================================================+" << endl;
+            cout << "|                    DELETE CUSTOMER                             |" << endl;
+            cout << "+===============================================================+\n" << endl;
+            handle_delete_cust();
+        } else if (choice == 5) {
+            cout << "\n+===============================================================+" << endl;
+            cout << "|                    TOTAL SALES REPORT                          |" << endl;
+            cout << "+===============================================================+\n" << endl;
+            cout << "Total company sales are: $" << customer_table.get_total_sales() << endl;
+        } else if (choice == 6) {
+            cout << "\n+===============================================================+" << endl;
+            cout << "|                    SEARCH CUSTOMER                             |" << endl;
+            cout << "+===============================================================+\n" << endl;
+            search_customer();
+        } else if (choice == 7) {
+            cout << "\n+===============================================================+" << endl;
+            cout << "|                    THANK YOU FOR USING                         |" << endl;
+            cout << "|                    CUSTOMER MANAGEMENT SYSTEM                   |" << endl;
+            cout << "+===============================================================+\n" << endl;
+            continue;
+        } else {
+            cout << "\n[!] ERROR: Please enter a valid number between 1 and 7 [!]" << endl;
         }
-        else if (choice == 4) handle_delete_cust();
-        else if (choice == 5) {
-            std::cout << "Total revenue from members: $"
-                      << customer_table.get_total_paid() << "\n";
-        }
-        else if (choice == 6) search_customer();
-        else if (choice == 7) use_session();
-        else if (choice != 8) {
-            std::cout << "Invalid choice.\n";
-        }
-    } while (choice != 8);
+    } while (choice != 7);
 }
 
 // Search member by name
@@ -197,25 +236,30 @@ void interface::search_customer() {
     std::getline(std::cin, search_name);
 
     bool found = false;
-    for (const auto& [id, c] : customer_table.hashtable) {
-        if (c.name == search_name) {
-            std::cout << "\nMember Found:\n"
-                      << "ID: " << c.id << "\n"
-                      << "Name: " << c.name << "\n"
-                      << "Phone: " << c.phone << "\n"
-                      << "City: " << c.city << "\n"
-                      << "Expiry: " << c.expiry_date << "\n"
-                      << "Sessions Purchased: " << c.sessions_purchased << "\n"
-                      << "Sessions Used: " << c.sessions_used << "\n"
-                      << "Status: " << c.status << "\n"
-                      << "Total Paid: $" << c.total_paid << "\n";
+
+    cout << "\n+===============================================================+" << endl;
+    cout << "|                    SEARCH RESULTS                              |" << endl;
+    cout << "+===============================================================+\n" << endl;
+
+    for (auto it = customer_table.hashtable.begin(); it != customer_table.hashtable.end(); ++it) {
+        if (it->second.name == search_name) {
+            cout << "[+] Customer Found!" << endl;
+            cout << "-----------------------------------------------------------------" << endl;
+            cout << "ID: " << it->first << endl;
+            cout << "Name: " << it->second.name << endl;
+            cout << "City: " << it->second.city << endl;
+            cout << "State: " << it->second.state << endl;
+            cout << "Last Visit: " << it->second.format_date() << endl;
+            cout << "Total Sales: $" << it->second.total_sales << endl;
+            cout << "-----------------------------------------------------------------" << endl;
             found = true;
             break;
         }
     }
 
     if (!found) {
-        std::cout << "❌ Member not found.\n";
+
+        cout << "[-] Customer with the name '" << search_name << "' not found." << endl;
     }
 }
 
