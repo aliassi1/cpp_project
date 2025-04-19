@@ -152,56 +152,84 @@ void interface::handle_update_cust() {
 // In interface.hpp, update the show_options method to include the search option:
 
 void interface::show_options() {
-    cout << "What would you like to do?" << endl;
-    cout << "1 - Add Customer" << endl
-         << "2 - Update Customer" << endl
-         << "3 - Show Customers Table" << endl
-         << "4 - Delete Customer" << endl
-         << "5 - Show total sales" << endl
-         << "6 - Search Customer by Name" << endl  // New search option
-         << "7 - Exit Program" << endl;
+    cout << "\n+===============================================================+" << endl;
+    cout << "|                    Fitness CUSTOMER MANAGEMENT SYSTEM           |" << endl;
+    cout << "+===============================================================+" << endl;
+    cout << "|                                                               |" << endl;
+    cout << "|  [1] > Add New Customer                                      |" << endl;
+    cout << "|  [2] > Update Customer Information                           |" << endl;
+    cout << "|  [3] > Display Customer Table                               |" << endl;
+    cout << "|  [4] > Delete Customer                                       |" << endl;
+    cout << "|  [5] > View Total Sales                                      |" << endl;
+    cout << "|  [6] > Search Customer by Name                              |" << endl;
+    cout << "|  [7] > Exit Program                                          |" << endl;
+    cout << "|                                                               |" << endl;
+    cout << "+===============================================================+" << endl;
+    cout << "\nEnter your choice (1-7): ";
 }
 
 
 
 // Function that handles showing user interface
 void interface::show_interface() {
+    cout << "\n+===============================================================+" << endl;
+    cout << "|                    WELCOME TO CUSTOMER MANAGEMENT             |" << endl;
+    cout << "+===============================================================+\n" << endl;
+    
     customer_table.print_table(customer_table.get_max_id());
     int choice;
-    // Run until user quits
-    // In interface.hpp, update the main loop to handle the new option:
+    
+    do {
+        show_options();
+        cin >> choice;
 
-do {
-    show_options();
-    cin >> choice;
-
-    if (choice == 1) {
-        handle_add_cust();
-    } else if (choice == 2) {
-        handle_update_cust();
-    } else if (choice == 3) {
-        cout << "Select number of customers to show (Enter '*' to show all): " << endl;
-        string n_show;
-        cin >> n_show;
-        if (n_show == "*") {
-            customer_table.print_table(customer_table.get_max_id());
+        if (choice == 1) {
+            cout << "\n+===============================================================+" << endl;
+            cout << "|                    ADD NEW CUSTOMER                            |" << endl;
+            cout << "+===============================================================+\n" << endl;
+            handle_add_cust();
+        } else if (choice == 2) {
+            cout << "\n+===============================================================+" << endl;
+            cout << "|                    UPDATE CUSTOMER                             |" << endl;
+            cout << "+===============================================================+\n" << endl;
+            handle_update_cust();
+        } else if (choice == 3) {
+            cout << "\n+===============================================================+" << endl;
+            cout << "|                    DISPLAY CUSTOMERS                           |" << endl;
+            cout << "+===============================================================+\n" << endl;
+            cout << "Select number of customers to show (Enter '*' to show all): ";
+            string n_show;
+            cin >> n_show;
+            if (n_show == "*") {
+                customer_table.print_table(customer_table.get_max_id());
+            } else {
+                customer_table.print_table(stoi(n_show));
+            }
+        } else if (choice == 4) {
+            cout << "\n+===============================================================+" << endl;
+            cout << "|                    DELETE CUSTOMER                             |" << endl;
+            cout << "+===============================================================+\n" << endl;
+            handle_delete_cust();
+        } else if (choice == 5) {
+            cout << "\n+===============================================================+" << endl;
+            cout << "|                    TOTAL SALES REPORT                          |" << endl;
+            cout << "+===============================================================+\n" << endl;
+            cout << "Total company sales are: $" << customer_table.get_total_sales() << endl;
+        } else if (choice == 6) {
+            cout << "\n+===============================================================+" << endl;
+            cout << "|                    SEARCH CUSTOMER                             |" << endl;
+            cout << "+===============================================================+\n" << endl;
+            search_customer();
+        } else if (choice == 7) {
+            cout << "\n+===============================================================+" << endl;
+            cout << "|                    THANK YOU FOR USING                         |" << endl;
+            cout << "|                    CUSTOMER MANAGEMENT SYSTEM                   |" << endl;
+            cout << "+===============================================================+\n" << endl;
+            continue;
         } else {
-            customer_table.print_table(stoi(n_show));
+            cout << "\n[!] ERROR: Please enter a valid number between 1 and 7 [!]" << endl;
         }
-    } else if (choice == 4) {
-        handle_delete_cust();
-    } else if (choice == 5) {
-        cout << "Total company sales are: $"
-             << customer_table.get_total_sales() << endl;
-    } else if (choice == 6) { // New search customer option
-        search_customer();
-    } else if (choice == 7) {  // Quit program
-        continue;
-    } else {
-        cout << "Please enter a number listed from the menu options (1-7)" << endl; 
-    }
-} while (choice != 7);
-
+    } while (choice != 7);
 }
 
 void interface::search_customer() {
@@ -211,22 +239,27 @@ void interface::search_customer() {
     getline(cin, search_name);
 
     bool found = false;
-    // Iterate through the customer table to find the name
+    cout << "\n+===============================================================+" << endl;
+    cout << "|                    SEARCH RESULTS                              |" << endl;
+    cout << "+===============================================================+\n" << endl;
+
     for (auto it = customer_table.hashtable.begin(); it != customer_table.hashtable.end(); ++it) {
         if (it->second.name == search_name) {
-            cout << "Customer Found!" << endl;
+            cout << "[+] Customer Found!" << endl;
+            cout << "-----------------------------------------------------------------" << endl;
             cout << "ID: " << it->first << endl;
             cout << "Name: " << it->second.name << endl;
             cout << "City: " << it->second.city << endl;
             cout << "State: " << it->second.state << endl;
             cout << "Last Visit: " << it->second.format_date() << endl;
             cout << "Total Sales: $" << it->second.total_sales << endl;
+            cout << "-----------------------------------------------------------------" << endl;
             found = true;
             break;
         }
     }
 
     if (!found) {
-        cout << "Customer with the name '" << search_name << "' not found." << endl;
+        cout << "[-] Customer with the name '" << search_name << "' not found." << endl;
     }
 }
