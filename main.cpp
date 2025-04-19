@@ -9,8 +9,8 @@ Description: This is a simple CRM console application. See Documentation For mor
 #include "headers/interface.hpp"
 
 int main() {
-    // Initialize the customer table
-    cust_table table("cust_data.csv");
+    // Initialize the customer table with SQLite database
+    cust_table table("test.db");
     // Create an interface object
     interface main_menu(table);
     // Run the main interface process

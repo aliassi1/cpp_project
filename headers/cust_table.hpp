@@ -8,6 +8,7 @@ Member function definitions for cust_table class
 #include <iomanip>
 #include <limits>
 #include "cust_table.h"
+#include "../sqlite3.h"
 
 // Function to get max id in customer table
 //int cust_table::get_max_id() {
@@ -86,44 +87,77 @@ void cust_table::print_table(int n_rows) {
     }
 }
 
-// Write customer table to local db
-void cust_table::write_data() {
-    // Use of stream to output to filename, truncate before writing
-    std::ofstream ofs;
-    // Open stream with trunc option to erase old data
-    ofs.open(cust_table::filename,ofstream::trunc);
-    for (auto it = hashtable.begin(); it != hashtable.end(); ++it) {
-            // Write each item in cust table to csv
-            ofs << it->first << ',';
-            ofs << it->second.name << ',';
-            ofs << it->second.city << ',';
-            ofs << it->second.state << ',';
-            ofs << it->second.last_visit << ',';
-            ofs << it->second.total_sales;
-            ofs << endl;
-        }
-    ofs.close();
+// Initialize the SQLite database
+void cust_table::init_database() {
+    int rc = sqlite3_open(db_name.c_str(), &db);
+    if (rc) {
+        cerr << "Can't open database: " << sqlite3_errmsg(db) << endl;
+        return;
+    }
+    
+    // Create table if it doesn't exist
+    const char* sql = "CREATE TABLE IF NOT EXISTS customers ("
+                     "id INTEGER PRIMARY KEY,"
+                     "name TEXT,"
+                     "city TEXT,"
+                     "state TEXT,"
+                     "last_visit INTEGER,"
+                     "total_sales INTEGER);";
+                     
+    char* errMsg = 0;
+    rc = sqlite3_exec(db, sql, 0, 0, &errMsg);
+    if (rc != SQLITE_OK) {
+        cerr << "SQL error: " << errMsg << endl;
+        sqlite3_free(errMsg);
+    }
 }
 
-// Read customer data from local db
-void cust_table::read_data() {
-    std::ifstream ifs;
-    std::string line;
-    ifs.open(cust_table::filename,ios::in);
-    while (std::getline(ifs,line)) {
-        std::stringstream ss(line);
-        std::string id,name,city,state,last_visit,total_sales;
-
-        std::getline(ss,id,',');
-        std::getline(ss,name,',');
-        std::getline(ss,city,',');
-        std::getline(ss,state,',');
-        std::getline(ss,last_visit,',');
-        std::getline(ss,total_sales,',');
+// Write customer table to database
+void cust_table::write_data() {
+    // Begin transaction for better performance
+    sqlite3_exec(db, "BEGIN TRANSACTION", 0, 0, 0);
+    
+    // Prepare the insert statement
+    const char* sql = "INSERT OR REPLACE INTO customers (id, name, city, state, last_visit, total_sales) "
+                     "VALUES (?, ?, ?, ?, ?, ?);";
+    sqlite3_stmt* stmt;
+    sqlite3_prepare_v2(db, sql, -1, &stmt, 0);
+    
+    for (auto it = hashtable.begin(); it != hashtable.end(); ++it) {
+        sqlite3_bind_int(stmt, 1, it->first);
+        sqlite3_bind_text(stmt, 2, it->second.name.c_str(), -1, SQLITE_STATIC);
+        sqlite3_bind_text(stmt, 3, it->second.city.c_str(), -1, SQLITE_STATIC);
+        sqlite3_bind_text(stmt, 4, it->second.state.c_str(), -1, SQLITE_STATIC);
+        sqlite3_bind_int(stmt, 5, it->second.last_visit);
+        sqlite3_bind_int(stmt, 6, it->second.total_sales);
         
-        customer cust(std::stoi(id),name,std::stoi(last_visit),std::stoi(total_sales),city,state);
-        cust_table::insert_row(std::stoi(id),cust);
+        sqlite3_step(stmt);
+        sqlite3_reset(stmt);
     }
+    
+    sqlite3_finalize(stmt);
+    sqlite3_exec(db, "COMMIT", 0, 0, 0);
+}
+
+// Read customer data from database
+void cust_table::read_data() {
+    const char* sql = "SELECT * FROM customers;";
+    sqlite3_stmt* stmt;
+    sqlite3_prepare_v2(db, sql, -1, &stmt, 0);
+    
+    while (sqlite3_step(stmt) == SQLITE_ROW) {
+        int id = sqlite3_column_int(stmt, 0);
+        string name = (const char*)sqlite3_column_text(stmt, 1);
+        string city = (const char*)sqlite3_column_text(stmt, 2);
+        string state = (const char*)sqlite3_column_text(stmt, 3);
+        int last_visit = sqlite3_column_int(stmt, 4);
+        int total_sales = sqlite3_column_int(stmt, 5);
+        
+        customer cust(id, name, last_visit, total_sales, city, state);
+        insert_row(id, cust);
+    }
+    
+    sqlite3_finalize(stmt);
 }
 
 // Get total sales of all customers

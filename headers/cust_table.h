@@ -7,24 +7,35 @@ Inherits from base table class */
 #define __cust_table_H_INCLUDED__ 
 
 #include <iostream>
+#include "../sqlite3.h"
 #include "table.h"
 #include "customer.hpp"
 
 using namespace std;
 
 class cust_table : public table<int,customer>  {
+    private:
+        sqlite3* db;
+        void init_database();
+        
     public:
-        std::string filename;
+        std::string db_name;
 
         // Constructor - assign params and fill table with data on class creation
-        cust_table(std::string i_filename)
-        :filename(i_filename)
-        {cust_table::read_data();};
-        // Destructor - save the data to local db and empty out in memory table
+        cust_table(std::string i_db_name)
+        : db_name(i_db_name)
+        {
+            init_database();
+            read_data();
+        };
+        
+        // Destructor - save the data to database and cleanup
         ~cust_table() {
             write_data();
             hashtable.clear();
+            sqlite3_close(db);
         }
+        
         // Member functions
         void print_table(int n_rows);
         void read_data();
