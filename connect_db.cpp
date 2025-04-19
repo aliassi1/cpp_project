@@ -20,12 +20,15 @@ int main() {
     }
 
     const char* sql = "CREATE TABLE IF NOT EXISTS users ("
-                      "id INTEGER PRIMARY KEY AUTOINCREMENT, "
+                      "id INTEGER PRIMARY KEY,"
                       "name TEXT, "
+                      "phone TEXT, "
                       "city TEXT, "
-                      "state TEXT, "
-                      "last_visit DATE, "
-                      "total_sales DECIMAL"
+                      "expiry_date DATE, "
+                      "sessions_purchased INTEGER, "
+                      "sessions_used INTEGER,"
+                      "status TEXT, "
+                      "total_paid DECIMAL"
                       ");"
                       "SELECT * FROM users;";
 

@@ -210,7 +210,7 @@ void interface::show_interface() {
             cout << "\n+===============================================================+" << endl;
             cout << "|                    TOTAL SALES REPORT                          |" << endl;
             cout << "+===============================================================+\n" << endl;
-            cout << "Total company sales are: $" << customer_table.get_total_sales() << endl;
+            cout << "Total company sales are: $" << customer_table.get_total_paid() << endl;
         } else if (choice == 6) {
             cout << "\n+===============================================================+" << endl;
             cout << "|                    SEARCH CUSTOMER                             |" << endl;
@@ -248,9 +248,9 @@ void interface::search_customer() {
             cout << "ID: " << it->first << endl;
             cout << "Name: " << it->second.name << endl;
             cout << "City: " << it->second.city << endl;
-            cout << "State: " << it->second.state << endl;
+            cout << "Status: " << it->second.status << endl;
             cout << "Last Visit: " << it->second.format_date() << endl;
-            cout << "Total Sales: $" << it->second.total_sales << endl;
+            cout << "Total Paid: $" << it->second.total_paid << endl;
             cout << "-----------------------------------------------------------------" << endl;
             found = true;
             break;
