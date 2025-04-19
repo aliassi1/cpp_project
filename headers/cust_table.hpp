@@ -11,6 +11,7 @@ void cust_table::init_database() {
         std::cerr << "Can't open database: " << sqlite3_errmsg(db) << std::endl;
         return;
     }
+    std::cout << "Database opened successfully: " << db_name << std::endl;
 
     const char* sql = "CREATE TABLE IF NOT EXISTS users ("
                       "id INTEGER PRIMARY KEY, "
@@ -28,20 +29,34 @@ void cust_table::init_database() {
     if (rc != SQLITE_OK) {
         std::cerr << "SQL error: " << errMsg << std::endl;
         sqlite3_free(errMsg);
+    } else {
+        std::cout << "Table 'users' created or already exists" << std::endl;
     }
 }
 
 // Write customer table to database
 void cust_table::write_data() {
-    sqlite3_exec(db, "BEGIN TRANSACTION", nullptr, nullptr, nullptr);
+    std::cout << "Starting database write operation..." << std::endl;
+    
+    int rc = sqlite3_exec(db, "BEGIN TRANSACTION", nullptr, nullptr, nullptr);
+    if (rc != SQLITE_OK) {
+        std::cerr << "Failed to begin transaction: " << sqlite3_errmsg(db) << std::endl;
+        return;
+    }
 
     const char* sql = "INSERT OR REPLACE INTO users "
                       "(id, name, phone, city, expiry_date, sessions_purchased, sessions_used, status, total_paid) "
                       "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?);";
 
     sqlite3_stmt* stmt;
-    sqlite3_prepare_v2(db, sql, -1, &stmt, nullptr);
+    rc = sqlite3_prepare_v2(db, sql, -1, &stmt, nullptr);
+    if (rc != SQLITE_OK) {
+        std::cerr << "Failed to prepare statement: " << sqlite3_errmsg(db) << std::endl;
+        sqlite3_exec(db, "ROLLBACK", nullptr, nullptr, nullptr);
+        return;
+    }
 
+    int rows_affected = 0;
     for (const auto& [id, cust] : hashtable) {
         sqlite3_bind_int(stmt, 1, cust.id);
         sqlite3_bind_text(stmt, 2, cust.name.c_str(), -1, SQLITE_STATIC);
@@ -53,20 +68,40 @@ void cust_table::write_data() {
         sqlite3_bind_text(stmt, 8, cust.status.c_str(), -1, SQLITE_STATIC);
         sqlite3_bind_double(stmt, 9, cust.total_paid);
 
-        sqlite3_step(stmt);
+        rc = sqlite3_step(stmt);
+        if (rc != SQLITE_DONE) {
+            std::cerr << "Failed to insert row " << id << ": " << sqlite3_errmsg(db) << std::endl;
+        } else {
+            rows_affected++;
+        }
         sqlite3_reset(stmt);
     }
 
     sqlite3_finalize(stmt);
-    sqlite3_exec(db, "COMMIT", nullptr, nullptr, nullptr);
+    
+    rc = sqlite3_exec(db, "COMMIT", nullptr, nullptr, nullptr);
+    if (rc != SQLITE_OK) {
+        std::cerr << "Failed to commit transaction: " << sqlite3_errmsg(db) << std::endl;
+        sqlite3_exec(db, "ROLLBACK", nullptr, nullptr, nullptr);
+        return;
+    }
+
+    std::cout << "Database write completed. Rows affected: " << rows_affected << std::endl;
 }
 
 // Read customer data from database
 void cust_table::read_data() {
+    std::cout << "Starting database read operation..." << std::endl;
+    
     const char* sql = "SELECT * FROM users;";
     sqlite3_stmt* stmt;
-    sqlite3_prepare_v2(db, sql, -1, &stmt, nullptr);
+    int rc = sqlite3_prepare_v2(db, sql, -1, &stmt, nullptr);
+    if (rc != SQLITE_OK) {
+        std::cerr << "Failed to prepare statement: " << sqlite3_errmsg(db) << std::endl;
+        return;
+    }
 
+    int rows_read = 0;
     while (sqlite3_step(stmt) == SQLITE_ROW) {
         int id = sqlite3_column_int(stmt, 0);
         
@@ -90,9 +125,11 @@ void cust_table::read_data() {
         customer cust(id, name, phone, city, expiry_date, sessions_purchased, status, total_paid);
         cust.sessions_used = sessions_used;
         insert_row(id, cust);
+        rows_read++;
     }
 
     sqlite3_finalize(stmt);
+    std::cout << "Database read completed. Rows read: " << rows_read << std::endl;
 }
 
 // Get the max customer ID

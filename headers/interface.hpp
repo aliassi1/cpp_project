@@ -1,148 +1,342 @@
 #include "interface.h"
 #include <limits>
 #include <iomanip>
+#include <regex>
+#include <stdexcept>
+
+// Input validation functions
+bool is_valid_name(const std::string& name) {
+    if (name.empty()) {
+        std::cout << "Name cannot be empty.\n";
+        return false;
+    }
+    // Allow letters, spaces, and basic punctuation
+    std::regex name_pattern("^[a-zA-Z\\s\\-']+$");
+    if (!std::regex_match(name, name_pattern)) {
+        std::cout << "Name can only contain letters, spaces, hyphens, and apostrophes.\n";
+        return false;
+    }
+    return true;
+}
+
+bool is_valid_phone(const std::string& phone) {
+    if (phone.empty()) {
+        std::cout << "Phone number cannot be empty.\n";
+        return false;
+    }
+    // Allow digits, spaces, hyphens, and parentheses
+    std::regex phone_pattern("^[0-9\\s\\-()]+$");
+    if (!std::regex_match(phone, phone_pattern)) {
+        std::cout << "Phone number can only contain digits, spaces, hyphens, and parentheses.\n";
+        return false;
+    }
+    return true;
+}
+
+bool is_valid_city(const std::string& city) {
+    if (city.empty()) {
+        std::cout << "City cannot be empty.\n";
+        return false;
+    }
+    // Allow letters, spaces, and hyphens
+    std::regex city_pattern("^[a-zA-Z\\s\\-]+$");
+    if (!std::regex_match(city, city_pattern)) {
+        std::cout << "City can only contain letters, spaces, and hyphens.\n";
+        return false;
+    }
+    return true;
+}
+
+bool is_valid_date(const std::string& date) {
+    if (date.empty()) {
+        std::cout << "Date cannot be empty.\n";
+        return false;
+    }
+    // Check YYYY-MM-DD format
+    std::regex date_pattern("^\\d{4}-(?:0[1-9]|1[0-2])-(?:0[1-9]|[12]\\d|3[01])$");
+    if (!std::regex_match(date, date_pattern)) {
+        std::cout << "Date must be in YYYY-MM-DD format.\n";
+        return false;
+    }
+    return true;
+}
+
+bool is_valid_status(const std::string& status) {
+    if (status.empty()) {
+        std::cout << "Status cannot be empty.\n";
+        return false;
+    }
+    // Check if status is one of the allowed values
+    if (status != "Active" && status != "Inactive" && status != "Paused") {
+        std::cout << "Status must be either Active, Inactive, or Paused.\n";
+        return false;
+    }
+    return true;
+}
 
 // Add a new customer
 void interface::handle_add_cust() {
-    std::string name, phone, city, expiry_date, status;
-    int sessions_purchased;
-    float total_paid;
-    int last_id = customer_table.get_max_id();
+    try {
+        std::string name, phone, city, expiry_date, status;
+        int sessions_purchased;
+        float total_paid;
+        int last_id = customer_table.get_max_id();
 
-    std::cin.ignore(std::numeric_limits<std::streamsize>::max(), '\n');
-    std::cout << "Enter member full name: ";
-    std::getline(std::cin, name);
-    std::cout << "Enter phone number: ";
-    std::getline(std::cin, phone);
-    std::cout << "Enter city: ";
-    std::getline(std::cin, city);
-    std::cout << "Enter membership expiry date (YYYY-MM-DD): ";
-    std::getline(std::cin, expiry_date);
-    std::cout << "Enter number of sessions purchased: ";
-    std::cin >> sessions_purchased;
-    std::cin.ignore();
-    std::cout << "Enter membership status (Active/Inactive/Paused): ";
-    std::getline(std::cin, status);
-    std::cout << "Enter total money paid: $";
-    std::cin >> total_paid;
+        std::cin.ignore(std::numeric_limits<std::streamsize>::max(), '\n');
+        
+        // Get and validate name
+        do {
+            std::cout << "Enter member full name: ";
+            std::getline(std::cin, name);
+        } while (!is_valid_name(name));
 
-    customer new_cust(last_id + 1, name, phone, city, expiry_date,
-                      sessions_purchased, status, total_paid);
-    customer_table.insert_row(last_id + 1, new_cust);
-    std::cout << "✅ Member added successfully.\n";
+        // Get and validate phone
+        do {
+            std::cout << "Enter phone number: ";
+            std::getline(std::cin, phone);
+        } while (!is_valid_phone(phone));
+
+        // Get and validate city
+        do {
+            std::cout << "Enter city: ";
+            std::getline(std::cin, city);
+        } while (!is_valid_city(city));
+
+        // Get and validate expiry date
+        do {
+            std::cout << "Enter membership expiry date (YYYY-MM-DD): ";
+            std::getline(std::cin, expiry_date);
+        } while (!is_valid_date(expiry_date));
+
+        // Get and validate sessions purchased
+        do {
+            std::cout << "Enter number of sessions purchased: ";
+            if (!(std::cin >> sessions_purchased) || sessions_purchased <= 0) {
+                std::cout << "Sessions purchased must be a positive number.\n";
+                std::cin.clear();
+                std::cin.ignore(std::numeric_limits<std::streamsize>::max(), '\n');
+            }
+        } while (sessions_purchased <= 0);
+
+        std::cin.ignore();
+
+        // Get and validate status
+        do {
+            std::cout << "Enter membership status (Active/Inactive/Paused): ";
+            std::getline(std::cin, status);
+        } while (!is_valid_status(status));
+
+        // Get and validate total paid
+        do {
+            std::cout << "Enter total money paid: $";
+            if (!(std::cin >> total_paid) || total_paid < 0) {
+                std::cout << "Total paid must be a non-negative number.\n";
+                std::cin.clear();
+                std::cin.ignore(std::numeric_limits<std::streamsize>::max(), '\n');
+            }
+        } while (total_paid < 0);
+
+        customer new_cust(last_id + 1, name, phone, city, expiry_date,
+                        sessions_purchased, status, total_paid);
+        customer_table.insert_row(last_id + 1, new_cust);
+        customer_table.write_data();
+        std::cout << "✅ Member added successfully.\n";
+    } catch (const std::exception& e) {
+        std::cerr << "Error adding member: " << e.what() << std::endl;
+    }
 }
 
 // Delete a customer
 void interface::handle_delete_cust() {
-    int delete_id;
-    std::cout << "Enter customer ID to delete: ";
-    std::cin >> delete_id;
-
-    auto search = customer_table.hashtable.find(delete_id);
-    if (search != customer_table.hashtable.end()) {
-        const customer& c = search->second;
-        std::cout << "Found member:\n";
-        std::cout << "Name: " << c.name << "\n";
-        std::cout << "Phone: " << c.phone << "\n";
-        std::cout << "City: " << c.city << "\n";
-        std::cout << "Expiry: " << c.expiry_date << "\n";
-        std::cout << "Sessions Purchased: " << c.sessions_purchased << "\n";
-        std::cout << "Sessions Used: " << c.sessions_used << "\n";
-        std::cout << "Status: " << c.status << "\n";
-        std::cout << "Total Paid: $" << c.total_paid << "\n";
-
-        std::string confirm;
-        std::cout << "Are you sure you want to delete this member? (Y/N): ";
-        std::cin >> confirm;
-        if (confirm == "Y" || confirm == "y") {
-            customer_table.hashtable.erase(delete_id);
-            std::cout << "✅ Member deleted.\n";
-        } else {
-            std::cout << "Deletion cancelled.\n";
+    try {
+        int delete_id;
+        std::cout << "Enter customer ID to delete: ";
+        if (!(std::cin >> delete_id) || delete_id <= 0) {
+            std::cout << "❌ Invalid customer ID.\n";
+            return;
         }
-    } else {
-        std::cout << "❌ No member with ID " << delete_id << " found.\n";
+
+        auto search = customer_table.hashtable.find(delete_id);
+        if (search != customer_table.hashtable.end()) {
+            const customer& c = search->second;
+            std::cout << "Found member:\n";
+            std::cout << "Name: " << c.name << "\n";
+            std::cout << "Phone: " << c.phone << "\n";
+            std::cout << "City: " << c.city << "\n";
+            std::cout << "Expiry: " << c.expiry_date << "\n";
+            std::cout << "Sessions Purchased: " << c.sessions_purchased << "\n";
+            std::cout << "Sessions Used: " << c.sessions_used << "\n";
+            std::cout << "Status: " << c.status << "\n";
+            std::cout << "Total Paid: $" << c.total_paid << "\n";
+
+            std::string confirm;
+            do {
+                std::cout << "Are you sure you want to delete this member? (Y/N): ";
+                std::cin >> confirm;
+            } while (confirm != "Y" && confirm != "y" && confirm != "N" && confirm != "n");
+
+            if (confirm == "Y" || confirm == "y") {
+                customer_table.hashtable.erase(delete_id);
+                customer_table.write_data();
+                std::cout << "✅ Member deleted.\n";
+            } else {
+                std::cout << "Deletion cancelled.\n";
+            }
+        } else {
+            std::cout << "❌ No member with ID " << delete_id << " found.\n";
+        }
+    } catch (const std::exception& e) {
+        std::cerr << "Error deleting member: " << e.what() << std::endl;
     }
 }
 
 // Update a customer
 void interface::handle_update_cust() {
-    int update_id;
-    std::cout << "Enter customer ID to update: ";
-    std::cin >> update_id;
-
-    auto search = customer_table.hashtable.find(update_id);
-    if (search != customer_table.hashtable.end()) {
-        std::string name, phone, city, expiry_date, status;
-        int sessions_purchased;
-        float transaction;
-
-        std::cout << "Found member ID: " << update_id << "\n";
-
-        std::cout << "1 - Update Member Information\n";
-        std::cout << "2 - Add Payment\n";
-        std::cout << "3 - Cancel\n";
-
-        int choice;
-        std::cin >> choice;
-        std::cin.ignore();
-
-        if (choice == 1) {
-            std::cout << "Select field to update:\n";
-            std::cout << "1 - Name\n2 - Phone\n3 - City\n4 - Expiry Date\n5 - Status\n6 - Sessions Purchased\n7 - Cancel\n";
-
-            int field;
-            std::cin >> field;
-            std::cin.ignore();
-
-            switch (field) {
-                case 1:
-                    std::cout << "New Name: ";
-                    std::getline(std::cin, name);
-                    search->second.name = name;
-                    break;
-                case 2:
-                    std::cout << "New Phone: ";
-                    std::getline(std::cin, phone);
-                    search->second.phone = phone;
-                    break;
-                case 3:
-                    std::cout << "New City: ";
-                    std::getline(std::cin, city);
-                    search->second.city = city;
-                    break;
-                case 4:
-                    std::cout << "New Expiry Date (YYYY-MM-DD): ";
-                    std::getline(std::cin, expiry_date);
-                    search->second.expiry_date = expiry_date;
-                    break;
-                case 5:
-                    std::cout << "New Status: ";
-                    std::getline(std::cin, status);
-                    search->second.status = status;
-                    break;
-                case 6:
-                    std::cout << "Enter updated number of sessions purchased: ";
-                    std::cin >> sessions_purchased;
-                    search->second.sessions_purchased = sessions_purchased;
-                    break;
-                default:
-                    std::cout << "Update cancelled.\n";
-                    return;
-            }
-            std::cout << "✅ Member updated.\n";
-
-        } else if (choice == 2) {
-            std::cout << "Add amount paid: $";
-            std::cin >> transaction;
-            search->second.total_paid += transaction;
-            std::cout << "✅ Payment recorded. Total Paid: $" << search->second.total_paid << "\n";
-        } else {
-            std::cout << "Update cancelled.\n";
+    try {
+        int update_id;
+        std::cout << "Enter customer ID to update: ";
+        if (!(std::cin >> update_id) || update_id <= 0) {
+            std::cout << "❌ Invalid customer ID.\n";
+            return;
         }
 
-    } else {
-        std::cout << "❌ No customer with ID " << update_id << " found.\n";
+        auto search = customer_table.hashtable.find(update_id);
+        if (search != customer_table.hashtable.end()) {
+            std::string name, phone, city, expiry_date, status;
+            int sessions_purchased;
+            double total_paid;
+
+            std::cout << "Found member ID: " << update_id << "\n";
+            std::cout << "Current member information:\n";
+            std::cout << "Name: " << search->second.name << "\n";
+            std::cout << "Phone: " << search->second.phone << "\n";
+            std::cout << "City: " << search->second.city << "\n";
+            std::cout << "Expiry Date: " << search->second.expiry_date << "\n";
+            std::cout << "Status: " << search->second.status << "\n";
+            std::cout << "Sessions Purchased: " << search->second.sessions_purchased << "\n";
+            std::cout << "Sessions Used: " << search->second.sessions_used << "\n";
+            std::cout << "Total Paid: $" << search->second.total_paid << "\n\n";
+
+            std::cout << "Select update option:\n";
+            std::cout << "1 - Update Member Information (name, phone, city, expiry date, status)\n";
+            std::cout << "2 - Update Sessions and Payment (sessions purchased, total paid)\n";
+            std::cout << "3 - Cancel\n";
+            std::cout << "Enter your choice (1-3): ";
+
+            int choice;
+            if (!(std::cin >> choice) || choice < 1 || choice > 3) {
+                std::cout << "❌ Invalid choice. Update cancelled.\n";
+                return;
+            }
+            std::cin.ignore();
+
+            if (choice == 1) {
+                std::cout << "\nUpdate Member Information:\n";
+                
+                // Update name
+                do {
+                    std::cout << "Enter new name (press Enter to keep current): ";
+                    std::getline(std::cin, name);
+                    if (!name.empty() && !is_valid_name(name)) {
+                        continue;
+                    }
+                    if (!name.empty()) search->second.name = name;
+                    break;
+                } while (true);
+
+                // Update phone
+                do {
+                    std::cout << "Enter new phone (press Enter to keep current): ";
+                    std::getline(std::cin, phone);
+                    if (!phone.empty() && !is_valid_phone(phone)) {
+                        continue;
+                    }
+                    if (!phone.empty()) search->second.phone = phone;
+                    break;
+                } while (true);
+
+                // Update city
+                do {
+                    std::cout << "Enter new city (press Enter to keep current): ";
+                    std::getline(std::cin, city);
+                    if (!city.empty() && !is_valid_city(city)) {
+                        continue;
+                    }
+                    if (!city.empty()) search->second.city = city;
+                    break;
+                } while (true);
+
+                // Update expiry date
+                do {
+                    std::cout << "Enter new expiry date YYYY-MM-DD (press Enter to keep current): ";
+                    std::getline(std::cin, expiry_date);
+                    if (!expiry_date.empty() && !is_valid_date(expiry_date)) {
+                        continue;
+                    }
+                    if (!expiry_date.empty()) search->second.expiry_date = expiry_date;
+                    break;
+                } while (true);
+
+                // Update status
+                do {
+                    std::cout << "Enter new status (Active/Inactive/Paused) (press Enter to keep current): ";
+                    std::getline(std::cin, status);
+                    if (!status.empty() && !is_valid_status(status)) {
+                        continue;
+                    }
+                    if (!status.empty()) search->second.status = status;
+                    break;
+                } while (true);
+
+                customer_table.write_data();
+                std::cout << "✅ Member information updated successfully.\n";
+
+            } else if (choice == 2) {
+                std::cout << "\nUpdate Sessions and Payment:\n";
+                std::cout << "Current sessions purchased: " << search->second.sessions_purchased << "\n";
+                
+                // Update sessions purchased
+                do {
+                    std::cout << "Enter number of additional sessions to add: ";
+                    if (!(std::cin >> sessions_purchased) || sessions_purchased < 0) {
+                        std::cout << "❌ Invalid number of sessions. Must be non-negative.\n";
+                        std::cin.clear();
+                        std::cin.ignore(std::numeric_limits<std::streamsize>::max(), '\n');
+                        continue;
+                    }
+                    if (sessions_purchased > 0) {
+                        search->second.sessions_purchased += sessions_purchased;
+                        std::cout << "New total sessions: " << search->second.sessions_purchased << "\n";
+                    }
+                    break;
+                } while (true);
+
+                // Update total paid
+                do {
+                    std::cout << "Enter payment amount for the new sessions: $";
+                    if (!(std::cin >> total_paid) || total_paid < 0) {
+                        std::cout << "❌ Invalid payment amount. Must be non-negative.\n";
+                        std::cin.clear();
+                        std::cin.ignore(std::numeric_limits<std::streamsize>::max(), '\n');
+                        continue;
+                    }
+                    search->second.total_paid += total_paid;
+                    customer_table.write_data();
+                    std::cout << "✅ Sessions and payment updated successfully.\n";
+                    std::cout << "New total paid: $" << search->second.total_paid << "\n";
+                    break;
+                } while (true);
+
+            } else if (choice == 3) {
+                std::cout << "Update cancelled.\n";
+                return;
+            }
+
+        } else {
+            std::cout << "❌ No member with ID " << update_id << " found.\n";
+        }
+    } catch (const std::exception& e) {
+        std::cerr << "Error updating member: " << e.what() << std::endl;
     }
 }
 
