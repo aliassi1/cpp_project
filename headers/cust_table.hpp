@@ -8,10 +8,8 @@
 void cust_table::init_database() {
     int rc = sqlite3_open(db_name.c_str(), &db);
     if (rc) {
-        std::cerr << "Can't open database: " << sqlite3_errmsg(db) << std::endl;
         return;
     }
-    std::cout << "Database opened successfully: " << db_name << std::endl;
 
     const char* sql = "CREATE TABLE IF NOT EXISTS users ("
                       "id INTEGER PRIMARY KEY, "
@@ -36,7 +34,6 @@ void cust_table::init_database() {
 
 // Write customer table to database
 void cust_table::write_data() {
-    std::cout << "Starting database write operation..." << std::endl;
     
     int rc = sqlite3_exec(db, "BEGIN TRANSACTION", nullptr, nullptr, nullptr);
     if (rc != SQLITE_OK) {
@@ -86,12 +83,10 @@ void cust_table::write_data() {
         return;
     }
 
-    std::cout << "Database write completed. Rows affected: " << rows_affected << std::endl;
 }
 
 // Read customer data from database
 void cust_table::read_data() {
-    std::cout << "Starting database read operation..." << std::endl;
     
     const char* sql = "SELECT * FROM users;";
     sqlite3_stmt* stmt;
@@ -129,7 +124,6 @@ void cust_table::read_data() {
     }
 
     sqlite3_finalize(stmt);
-    std::cout << "Database read completed. Rows read: " << rows_read << std::endl;
 }
 
 // Get the max customer ID

@@ -62,23 +62,18 @@ int main() {
         cust_table table("test.db");
         
         // Load customer data from database
-        std::cout << "Loading customer data...\n";
         table.read_data();
-        std::cout << "Customer data loaded successfully.\n\n";
         
         // Create user accounts for existing customers
         UserTable user_table;
         int accounts_created = 0;
         
-        std::cout << "Creating user accounts for existing customers...\n";
         for (const auto& [id, cust] : table.hashtable) {
             std::string username = create_username(cust.name);
             if (user_table.add_user(username, cust.phone)) {
-                std::cout << "Created account for " << cust.name << " with username: " << username << "\n";
                 accounts_created++;
             }
         }
-        std::cout << "Created " << accounts_created << " user accounts.\n\n";
         
         while (true) {
             try {
@@ -113,7 +108,9 @@ int main() {
                         if (user_table.login(username, phone)) {
                             std::cout << "Member login successful!\n";
                             member_interface member_menu(table, username);
-                            member_menu.show_interface();
+                            if (member_menu.show_interface()) {
+                                continue;  // Return to login screen
+                            }
                         } 
                         else {
                             std::cout << "Invalid credentials.\n";
@@ -125,14 +122,6 @@ int main() {
                     std::cerr << "Error during login: " << e.what() << std::endl;
                     continue;
                 }
-
-                std::string again;
-                do {
-                    std::cout << "\nLogout? (y/n): ";
-                    std::cin >> again;
-                } while (again != "y" && again != "Y" && again != "n" && again != "N");
-                
-                if (again == "y" || again == "Y") break;
             } catch (const std::exception& e) {
                 std::cerr << "Error in main loop: " << e.what() << std::endl;
                 std::cout << "Please try again.\n";

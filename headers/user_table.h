@@ -23,7 +23,6 @@ public:
         users.clear();
         std::ifstream file(filename);
         if (!file.is_open()) {
-            std::cout << "No existing user data file found. Creating new one.\n";
             return;
         }
         
@@ -34,7 +33,6 @@ public:
             std::getline(ss, password, ',');
             std::getline(ss, phone, ',');
             users.emplace_back(username, password, phone);
-            std::cout << "Loaded user: " << username << " with phone: " << phone << "\n";
         }
         file.close();
     }
@@ -56,14 +54,11 @@ public:
 
         users.emplace_back(username, "", phone); // Empty password since we're using phone for login
         save_users();
-        std::cout << "Added user: " << username << " with phone: " << phone << "\n";
         return true;
     }
 
     bool login(const std::string& username, const std::string& phone) {
-        std::cout << "Checking login for username: " << username << " and phone: " << phone << "\n";
         for (const auto& user : users) {
-            std::cout << "Comparing with stored user: " << user.username << " and phone: " << user.phone_number << "\n";
             if (user.username == username && user.phone_number == phone) {
                 std::cout << "Login match found!\n";
                 return true;
