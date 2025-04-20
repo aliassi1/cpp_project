@@ -13,3 +13,5 @@
 !*.pdf
 !headers/
 !sample_run_screenshots/
+!*.o
+!*.c
