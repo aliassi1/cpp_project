@@ -1,185 +1,275 @@
-#include <sstream>
-#include <iomanip>
-#include <limits>
 #include "cust_table.h"
-#include "../sqlite3.h"
+#include <iostream>
+#include <iomanip>
 
-// Initialize the SQLite database
+// Constructor
+cust_table::cust_table(const std::string& db_file)
+    : db_name(db_file), db(nullptr)
+{
+    init_database();
+}
+
+// Destructor
+cust_table::~cust_table() {
+    if (db) {
+        sqlite3_close(db);
+    }
+}
+
+// Initialize the SQLite database and users table
 void cust_table::init_database() {
     int rc = sqlite3_open(db_name.c_str(), &db);
     if (rc) {
+        std::cerr << "❌ Error opening database: " << sqlite3_errmsg(db) << std::endl;
+        db = nullptr;
         return;
     }
-
     const char* sql = "CREATE TABLE IF NOT EXISTS users ("
                       "id INTEGER PRIMARY KEY, "
                       "name TEXT, "
                       "phone TEXT, "
                       "city TEXT, "
-                      "expiry_date DATE, "
+                      "expiry_date TEXT, "
                       "sessions_purchased INTEGER, "
                       "sessions_used INTEGER, "
                       "status TEXT, "
-                      "total_paid DECIMAL);";
-
+                      "total_paid REAL);";
     char* errMsg = nullptr;
     rc = sqlite3_exec(db, sql, nullptr, nullptr, &errMsg);
     if (rc != SQLITE_OK) {
         std::cerr << "SQL error: " << errMsg << std::endl;
         sqlite3_free(errMsg);
-    } else {
-        std::cout << "Table 'users' created or already exists" << std::endl;
     }
 }
 
-// Write customer table to database
-void cust_table::write_data() {
-    
-    int rc = sqlite3_exec(db, "BEGIN TRANSACTION", nullptr, nullptr, nullptr);
-    if (rc != SQLITE_OK) {
-        std::cerr << "Failed to begin transaction: " << sqlite3_errmsg(db) << std::endl;
-        return;
-    }
-
-    const char* sql = "INSERT OR REPLACE INTO users "
+// Add a new customer
+bool cust_table::add_customer(const customer& cust) {
+    const char* sql = "INSERT INTO users "
                       "(id, name, phone, city, expiry_date, sessions_purchased, sessions_used, status, total_paid) "
                       "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?);";
-
     sqlite3_stmt* stmt;
-    rc = sqlite3_prepare_v2(db, sql, -1, &stmt, nullptr);
-    if (rc != SQLITE_OK) {
-        std::cerr << "Failed to prepare statement: " << sqlite3_errmsg(db) << std::endl;
-        sqlite3_exec(db, "ROLLBACK", nullptr, nullptr, nullptr);
-        return;
-    }
+    if (sqlite3_prepare_v2(db, sql, -1, &stmt, nullptr) != SQLITE_OK) return false;
+    sqlite3_bind_int(stmt, 1, cust.id);
+    sqlite3_bind_text(stmt, 2, cust.name.c_str(), -1, SQLITE_TRANSIENT);
+    sqlite3_bind_text(stmt, 3, cust.phone.c_str(), -1, SQLITE_TRANSIENT);
+    sqlite3_bind_text(stmt, 4, cust.city.c_str(), -1, SQLITE_TRANSIENT);
+    sqlite3_bind_text(stmt, 5, cust.expiry_date.c_str(), -1, SQLITE_TRANSIENT);
+    sqlite3_bind_int(stmt, 6, cust.sessions_purchased);
+    sqlite3_bind_int(stmt, 7, cust.sessions_used);
+    sqlite3_bind_text(stmt, 8, cust.status.c_str(), -1, SQLITE_TRANSIENT);
+    sqlite3_bind_double(stmt, 9, cust.total_paid);
+    bool success = (sqlite3_step(stmt) == SQLITE_DONE);
+    sqlite3_finalize(stmt);
+    return success;
+}
 
-    int rows_affected = 0;
-    for (const auto& [id, cust] : hashtable) {
-        sqlite3_bind_int(stmt, 1, cust.id);
-        sqlite3_bind_text(stmt, 2, cust.name.c_str(), -1, SQLITE_STATIC);
-        sqlite3_bind_text(stmt, 3, cust.phone.c_str(), -1, SQLITE_STATIC);
-        sqlite3_bind_text(stmt, 4, cust.city.c_str(), -1, SQLITE_STATIC);
-        sqlite3_bind_text(stmt, 5, cust.expiry_date.c_str(), -1, SQLITE_STATIC);
-        sqlite3_bind_int(stmt, 6, cust.sessions_purchased);
-        sqlite3_bind_int(stmt, 7, cust.sessions_used);
-        sqlite3_bind_text(stmt, 8, cust.status.c_str(), -1, SQLITE_STATIC);
-        sqlite3_bind_double(stmt, 9, cust.total_paid);
-
-        rc = sqlite3_step(stmt);
-        if (rc != SQLITE_DONE) {
-            std::cerr << "Failed to insert row " << id << ": " << sqlite3_errmsg(db) << std::endl;
-        } else {
-            rows_affected++;
+// Update an existing customer
+bool cust_table::update_customer(const customer& cust) {
+    // Fetch the old phone before updating
+    std::string old_phone;
+    {
+        const char* sql_get = "SELECT phone FROM users WHERE id=?;";
+        sqlite3_stmt* stmt_get;
+        if (sqlite3_prepare_v2(db, sql_get, -1, &stmt_get, nullptr) == SQLITE_OK) {
+            sqlite3_bind_int(stmt_get, 1, cust.id);
+            if (sqlite3_step(stmt_get) == SQLITE_ROW && sqlite3_column_text(stmt_get, 0)) {
+                old_phone = reinterpret_cast<const char*>(sqlite3_column_text(stmt_get, 0));
+            }
+            sqlite3_finalize(stmt_get);
         }
-        sqlite3_reset(stmt);
     }
 
-    sqlite3_finalize(stmt);
-    
-    rc = sqlite3_exec(db, "COMMIT", nullptr, nullptr, nullptr);
-    if (rc != SQLITE_OK) {
-        std::cerr << "Failed to commit transaction: " << sqlite3_errmsg(db) << std::endl;
-        sqlite3_exec(db, "ROLLBACK", nullptr, nullptr, nullptr);
-        return;
-    }
-
-}
-
-// Read customer data from database
-void cust_table::read_data() {
-    
-    const char* sql = "SELECT * FROM users;";
+    // Now update the user as before
+    const char* sql = "UPDATE users SET name=?, phone=?, city=?, expiry_date=?, "
+                      "sessions_purchased=?, sessions_used=?, status=?, total_paid=? WHERE id=?;";
     sqlite3_stmt* stmt;
-    int rc = sqlite3_prepare_v2(db, sql, -1, &stmt, nullptr);
-    if (rc != SQLITE_OK) {
-        std::cerr << "Failed to prepare statement: " << sqlite3_errmsg(db) << std::endl;
-        return;
-    }
-
-    int rows_read = 0;
-    while (sqlite3_step(stmt) == SQLITE_ROW) {
-        int id = sqlite3_column_int(stmt, 0);
-        
-        // Add null checks for text columns
-        const char* name_text = (const char*)sqlite3_column_text(stmt, 1);
-        const char* phone_text = (const char*)sqlite3_column_text(stmt, 2);
-        const char* city_text = (const char*)sqlite3_column_text(stmt, 3);
-        const char* expiry_text = (const char*)sqlite3_column_text(stmt, 4);
-        const char* status_text = (const char*)sqlite3_column_text(stmt, 7);
-
-        std::string name = name_text ? name_text : "";
-        std::string phone = phone_text ? phone_text : "";
-        std::string city = city_text ? city_text : "";
-        std::string expiry_date = expiry_text ? expiry_text : "";
-        std::string status = status_text ? status_text : "";
-
-        int sessions_purchased = sqlite3_column_int(stmt, 5);
-        int sessions_used = sqlite3_column_int(stmt, 6);
-        float total_paid = static_cast<float>(sqlite3_column_double(stmt, 8));
-
-        customer cust(id, name, phone, city, expiry_date, sessions_purchased, status, total_paid);
-        cust.sessions_used = sessions_used;
-        insert_row(id, cust);
-        rows_read++;
-    }
-
+    if (sqlite3_prepare_v2(db, sql, -1, &stmt, nullptr) != SQLITE_OK) return false;
+    sqlite3_bind_text(stmt, 1, cust.name.c_str(), -1, SQLITE_TRANSIENT);
+    sqlite3_bind_text(stmt, 2, cust.phone.c_str(), -1, SQLITE_TRANSIENT);
+    sqlite3_bind_text(stmt, 3, cust.city.c_str(), -1, SQLITE_TRANSIENT);
+    sqlite3_bind_text(stmt, 4, cust.expiry_date.c_str(), -1, SQLITE_TRANSIENT);
+    sqlite3_bind_int(stmt, 5, cust.sessions_purchased);
+    sqlite3_bind_int(stmt, 6, cust.sessions_used);
+    sqlite3_bind_text(stmt, 7, cust.status.c_str(), -1, SQLITE_TRANSIENT);
+    sqlite3_bind_double(stmt, 8, cust.total_paid);
+    sqlite3_bind_int(stmt, 9, cust.id);
+    bool success = (sqlite3_step(stmt) == SQLITE_DONE);
     sqlite3_finalize(stmt);
+
+    // If the phone changed, update it in user_credentials as well
+    if (success && !old_phone.empty() && old_phone != cust.phone) {
+        sqlite3* DB;
+        sqlite3_open(db_name.c_str(), &DB);
+        std::string sql_update = "UPDATE user_credentials SET phone = ? WHERE phone = ?;";
+        sqlite3_stmt* stmt_update;
+        sqlite3_prepare_v2(DB, sql_update.c_str(), -1, &stmt_update, nullptr);
+        sqlite3_bind_text(stmt_update, 1, cust.phone.c_str(), -1, SQLITE_TRANSIENT);
+        sqlite3_bind_text(stmt_update, 2, old_phone.c_str(), -1, SQLITE_TRANSIENT);
+        sqlite3_step(stmt_update);
+        sqlite3_finalize(stmt_update);
+        sqlite3_close(DB);
+    }
+
+    return success;
 }
 
-// Get the max customer ID
+// Delete a customer by id
+bool cust_table::delete_customer_by_id(int id) {
+    // Fetch phone number for the customer
+    std::string phone;
+    const char* sql_get = "SELECT phone FROM users WHERE id=?;";
+    sqlite3_stmt* stmt_get;
+    if (sqlite3_prepare_v2(db, sql_get, -1, &stmt_get, nullptr) == SQLITE_OK) {
+        sqlite3_bind_int(stmt_get, 1, id);
+        if (sqlite3_step(stmt_get) == SQLITE_ROW && sqlite3_column_text(stmt_get, 0)) {
+            phone = reinterpret_cast<const char*>(sqlite3_column_text(stmt_get, 0));
+        }
+        sqlite3_finalize(stmt_get);
+    }
+    // Delete from user_credentials if phone is found
+    if (!phone.empty()) {
+        sqlite3* DB;
+        sqlite3_open(db_name.c_str(), &DB);
+        std::string sql_delete = "DELETE FROM user_credentials WHERE phone = ?;";
+        sqlite3_stmt* stmt_delete;
+        sqlite3_prepare_v2(DB, sql_delete.c_str(), -1, &stmt_delete, nullptr);
+        sqlite3_bind_text(stmt_delete, 1, phone.c_str(), -1, SQLITE_TRANSIENT);
+        sqlite3_step(stmt_delete);
+        sqlite3_finalize(stmt_delete);
+        sqlite3_close(DB);
+    }
+    // Delete from users
+    const char* sql = "DELETE FROM users WHERE id=?;";
+    sqlite3_stmt* stmt;
+    if (sqlite3_prepare_v2(db, sql, -1, &stmt, nullptr) != SQLITE_OK) return false;
+    sqlite3_bind_int(stmt, 1, id);
+    bool success = (sqlite3_step(stmt) == SQLITE_DONE);
+    sqlite3_finalize(stmt);
+    return success;
+}
+
+// Get a customer by id
+std::optional<customer> cust_table::get_customer_by_id(int id) {
+    const char* sql = "SELECT * FROM users WHERE id=?;";
+    sqlite3_stmt* stmt;
+    if (sqlite3_prepare_v2(db, sql, -1, &stmt, nullptr) != SQLITE_OK) return std::nullopt;
+    sqlite3_bind_int(stmt, 1, id);
+    customer cust;
+    if (sqlite3_step(stmt) == SQLITE_ROW) {
+        cust.id = sqlite3_column_int(stmt, 0);
+        cust.name = reinterpret_cast<const char*>(sqlite3_column_text(stmt, 1));
+        cust.phone = reinterpret_cast<const char*>(sqlite3_column_text(stmt, 2));
+        cust.city = reinterpret_cast<const char*>(sqlite3_column_text(stmt, 3));
+        cust.expiry_date = reinterpret_cast<const char*>(sqlite3_column_text(stmt, 4));
+        cust.sessions_purchased = sqlite3_column_int(stmt, 5);
+        cust.sessions_used = sqlite3_column_int(stmt, 6);
+        cust.status = reinterpret_cast<const char*>(sqlite3_column_text(stmt, 7));
+        cust.total_paid = static_cast<float>(sqlite3_column_double(stmt, 8));
+        sqlite3_finalize(stmt);
+        return cust;
+    }
+    sqlite3_finalize(stmt);
+    return std::nullopt;
+}
+
+// Search for customers by name (exact match)
+std::vector<customer> cust_table::search_customers_by_name(const std::string& name) {
+    std::vector<customer> results;
+    const char* sql = "SELECT * FROM users WHERE name=?;";
+    sqlite3_stmt* stmt;
+    if (sqlite3_prepare_v2(db, sql, -1, &stmt, nullptr) != SQLITE_OK) return results;
+    sqlite3_bind_text(stmt, 1, name.c_str(), -1, SQLITE_TRANSIENT);
+    while (sqlite3_step(stmt) == SQLITE_ROW) {
+        customer cust;
+        cust.id = sqlite3_column_int(stmt, 0);
+        cust.name = reinterpret_cast<const char*>(sqlite3_column_text(stmt, 1));
+        cust.phone = reinterpret_cast<const char*>(sqlite3_column_text(stmt, 2));
+        cust.city = reinterpret_cast<const char*>(sqlite3_column_text(stmt, 3));
+        cust.expiry_date = reinterpret_cast<const char*>(sqlite3_column_text(stmt, 4));
+        cust.sessions_purchased = sqlite3_column_int(stmt, 5);
+        cust.sessions_used = sqlite3_column_int(stmt, 6);
+        cust.status = reinterpret_cast<const char*>(sqlite3_column_text(stmt, 7));
+        cust.total_paid = static_cast<float>(sqlite3_column_double(stmt, 8));
+        results.push_back(cust);
+    }
+    sqlite3_finalize(stmt);
+    return results;
+}
+
+// Get all customers (optionally limit to n)
+std::vector<customer> cust_table::get_all_customers(int n) {
+    std::vector<customer> results;
+    std::string sql = "SELECT * FROM users";
+    if (n > 0) {
+        sql += " LIMIT " + std::to_string(n);
+    }
+    sqlite3_stmt* stmt;
+    if (sqlite3_prepare_v2(db, sql.c_str(), -1, &stmt, nullptr) != SQLITE_OK) return results;
+    while (sqlite3_step(stmt) == SQLITE_ROW) {
+        customer cust;
+        cust.id = sqlite3_column_int(stmt, 0);
+        cust.name = reinterpret_cast<const char*>(sqlite3_column_text(stmt, 1));
+        cust.phone = reinterpret_cast<const char*>(sqlite3_column_text(stmt, 2));
+        cust.city = reinterpret_cast<const char*>(sqlite3_column_text(stmt, 3));
+        cust.expiry_date = reinterpret_cast<const char*>(sqlite3_column_text(stmt, 4));
+        cust.sessions_purchased = sqlite3_column_int(stmt, 5);
+        cust.sessions_used = sqlite3_column_int(stmt, 6);
+        cust.status = reinterpret_cast<const char*>(sqlite3_column_text(stmt, 7));
+        cust.total_paid = static_cast<float>(sqlite3_column_double(stmt, 8));
+        results.push_back(cust);
+    }
+    sqlite3_finalize(stmt);
+    return results;
+}
+
+// Get the max customer ID in the database
 int cust_table::get_max_id() {
     int max_id = 0;
-    for (const auto& [id, cust] : hashtable) {
-        if (cust.id > max_id) {
-            max_id = cust.id;
+    const char* sql = "SELECT MAX(id) FROM users;";
+    sqlite3_stmt* stmt;
+    if (sqlite3_prepare_v2(db, sql, -1, &stmt, nullptr) == SQLITE_OK) {
+        if (sqlite3_step(stmt) == SQLITE_ROW) {
+            max_id = sqlite3_column_int(stmt, 0);
         }
+        sqlite3_finalize(stmt);
     }
     return max_id;
 }
 
-// Sum all total_paid values
+// Sum all total_paid values in the database
 float cust_table::get_total_paid() {
     float total = 0.0f;
-    for (const auto& [_, cust] : hashtable) {
-        total += cust.total_paid;
+    const char* sql = "SELECT SUM(total_paid) FROM users;";
+    sqlite3_stmt* stmt;
+    if (sqlite3_prepare_v2(db, sql, -1, &stmt, nullptr) == SQLITE_OK) {
+        if (sqlite3_step(stmt) == SQLITE_ROW) {
+            total = static_cast<float>(sqlite3_column_double(stmt, 0));
+        }
+        sqlite3_finalize(stmt);
     }
     return total;
 }
 
-// Print the customer table
-void cust_table::print_table(int n_rows) {
-    // Print header
-    std::cout << std::left
-              << std::setw(5) << "ID"
-              << std::setw(20) << "Name"
-              << std::setw(15) << "Phone"
-              << std::setw(15) << "City"
-              << std::setw(12) << "Expiry Date"
-              << std::setw(10) << "Sessions"
-              << std::setw(10) << "Used"
-              << std::setw(10) << "Status"
-              << std::setw(10) << "Total Paid"
-              << std::endl;
-    
-    std::cout << std::string(107, '-') << std::endl;
-
-    // Print rows
-    int count = 0;
-    for (const auto& [id, cust] : hashtable) {
-        if (n_rows > 0 && count >= n_rows) break;
-        
-        std::cout << std::left
-                  << std::setw(5) << cust.id
-                  << std::setw(20) << cust.name
-                  << std::setw(15) << cust.phone
-                  << std::setw(15) << cust.city
-                  << std::setw(12) << cust.expiry_date
-                  << std::setw(10) << cust.sessions_purchased
-                  << std::setw(10) << cust.sessions_used
-                  << std::setw(10) << cust.status
-                  << std::fixed << std::setprecision(2) << cust.total_paid
-                  << std::endl;
-        
-        count++;
+// (Optional) Get a customer by phone
+std::optional<customer> cust_table::get_customer_by_phone(const std::string& phone) {
+    const char* sql = "SELECT * FROM users WHERE phone=?;";
+    sqlite3_stmt* stmt;
+    if (sqlite3_prepare_v2(db, sql, -1, &stmt, nullptr) != SQLITE_OK) return std::nullopt;
+    sqlite3_bind_text(stmt, 1, phone.c_str(), -1, SQLITE_TRANSIENT);
+    customer cust;
+    if (sqlite3_step(stmt) == SQLITE_ROW) {
+        cust.id = sqlite3_column_int(stmt, 0);
+        cust.name = reinterpret_cast<const char*>(sqlite3_column_text(stmt, 1));
+        cust.phone = reinterpret_cast<const char*>(sqlite3_column_text(stmt, 2));
+        cust.city = reinterpret_cast<const char*>(sqlite3_column_text(stmt, 3));
+        cust.expiry_date = reinterpret_cast<const char*>(sqlite3_column_text(stmt, 4));
+        cust.sessions_purchased = sqlite3_column_int(stmt, 5);
+        cust.sessions_used = sqlite3_column_int(stmt, 6);
+        cust.status = reinterpret_cast<const char*>(sqlite3_column_text(stmt, 7));
+        cust.total_paid = static_cast<float>(sqlite3_column_double(stmt, 8));
+        sqlite3_finalize(stmt);
+        return cust;
     }
+    sqlite3_finalize(stmt);
+    return std::nullopt;
 }

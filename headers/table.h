@@ -1,8 +1,3 @@
-/* table.h
-Table class header file.
-Used as the base table class that the customer will inherit */
-
-// Avoid repeat loading file
 #ifndef __table_H_INCLUDED__
 #define __table_H_INCLUDED__
 
@@ -15,8 +10,9 @@ using namespace std;
 template <typename K, typename V>
 class table {
 public:
-    map<K, V> hashtable;
+    map<K, V> hashtable;  // Map to store data
 
+    // Declare the function (without definition)
     void insert_row(K key, V value);
 };
 

@@ -1,45 +1,51 @@
-// cust_table.h
-// Customer table class for CRM — now backed by SQLite
+#ifndef __CUST_TABLE_H_INCLUDED__
+#define __CUST_TABLE_H_INCLUDED__
 
-#ifndef __cust_table_H_INCLUDED__ 
-#define __cust_table_H_INCLUDED__ 
-
-#include <iostream>
-#include "../sqlite3.h"
-#include "table.h"
+#include <string>
+#include <vector>
+#include <optional>
+#include <sqlite3.h>
 #include "customer.hpp"
 
-class cust_table : public table<int, customer> {
-private:
-    sqlite3* db;
-    void init_database();  // Ensures table exists
-
+class cust_table {
 public:
-    std::string db_name;
+    // Constructor and destructor
+    cust_table(const std::string& db_file = "test.db");
+    ~cust_table();
 
-    // Constructor - assign params and fill table with data on class creation
-    cust_table(std::string i_db_name)
-        : db_name(i_db_name)
-    {
-        init_database();
-        read_data();
-    }
+    // Initialize the SQLite database and table
+    void init_database();
 
-    // Destructor - save the data to database and cleanup
-    ~cust_table() {
-        write_data();
-        hashtable.clear();
-        sqlite3_close(db);
-    }
+    // Add a new customer to the database
+    bool add_customer(const customer& cust);
 
-    // Member functions
-    void print_table(int n_rows);
-    void read_data();
-    void write_data();
+    // Update an existing customer in the database
+    bool update_customer(const customer& cust);
+
+    // Delete a customer by id
+    bool delete_customer_by_id(int id);
+
+    // Get a customer by id (returns nullopt if not found)
+    std::optional<customer> get_customer_by_id(int id);
+
+    // Search for customers by name (returns all matches)
+    std::vector<customer> search_customers_by_name(const std::string& name);
+
+    // Get all customers (optionally limit to n)
+    std::vector<customer> get_all_customers(int n = -1);
+
+    // Get the max customer ID in the database
     int get_max_id();
-    float get_total_paid();  // ✅ Your updated method
+
+    // Sum all total_paid values in the database
+    float get_total_paid();
+
+    // (Optional) Get a customer by phone (if still needed elsewhere)
+    std::optional<customer> get_customer_by_phone(const std::string& phone);
+
+private:
+    std::string db_name;
+    sqlite3* db;
 };
 
-#include "cust_table.hpp"
-
-#endif
+#endif // __CUST_TABLE_H_INCLUDED__

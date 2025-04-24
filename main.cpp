@@ -4,27 +4,11 @@
 #include "headers/user_table.h"
 #include "headers/sha256.h"
 #include <conio.h>  // For masking password input (Windows only)
-#include <regex>
-#include <stdexcept>
+#include <algorithm>
+#include "headers/cust_table.h"
+#include "headers/cust_table.hpp"
 
-const std::string ADMIN_USERNAME = "admin";
-const std::string ADMIN_PASSWORD = "adminpass";
-
-// Input validation functions
-bool is_valid_username(const std::string& username) {
-    if (username.empty()) {
-        std::cout << "Username cannot be empty.\n";
-        return false;
-    }
-    // Allow only alphanumeric characters and underscore
-    std::regex username_pattern("^[a-zA-Z0-9_]+$");
-    if (!std::regex_match(username, username_pattern)) {
-        std::cout << "Username can only contain letters, numbers, and underscores.\n";
-        return false;
-    }
-    return true;
-}
-
+// Function to get hidden input (password) from user
 std::string get_hidden_input() {
     std::string input;
     char ch;
@@ -43,94 +27,58 @@ std::string get_hidden_input() {
     return input;
 }
 
-// Create a username from a name
-std::string create_username(const std::string& name) {
-    std::string username = name;
-    // Convert to lowercase
-    std::transform(username.begin(), username.end(), username.begin(), ::tolower);
-    // Replace spaces with underscores
-    std::replace(username.begin(), username.end(), ' ', '_');
-    // Remove any non-alphanumeric characters
-    username.erase(std::remove_if(username.begin(), username.end(), 
-                  [](char c) { return !std::isalnum(c) && c != '_'; }), username.end());
-    return username;
-}
-
 int main() {
     try {
         // Initialize the customer table with SQLite database
         cust_table table("test.db");
-        
-        // Load customer data from database
-        table.read_data();
-        
-        // Create user accounts for existing customers
         UserTable user_table;
-        int accounts_created = 0;
-        
-        for (const auto& [id, cust] : table.hashtable) {
-            std::string username = create_username(cust.name);
-            if (user_table.add_user(username, cust.phone)) {
-                accounts_created++;
-            }
-        }
-        
+
         while (true) {
             try {
                 std::string username, phone;
-                
+
                 std::cout << "\n+==================================================+\n";
-                std::cout << "|                   GYM LOGIN PORTAL                 |\n";
+                std::cout << "|                   GYM LOGIN PORTAL              |\n";
                 std::cout << "+==================================================+\n\n";
 
-                // Get and validate username
-                do {
-                    std::cout << "Username: ";
-                    std::cin >> username;
-                } while (!is_valid_username(username));
+                // Ask if user wants to log in as admin or member
+                std::string login_type;
+                std::cout << "Enter 'admin' to log in as admin or 'member' to log in as a member: ";
+                std::cin >> login_type;
 
-                // Get phone number/password
-                std::cout << "Phone Number/Password: ";
-                phone = get_hidden_input();
+                if (login_type == "admin") {
+                    std::string admin_password = "adminpass";
+                    std::string password;
+                    std::cout << "Enter admin password: ";
+                    password = get_hidden_input();
 
-                try {
-                    if (username == ADMIN_USERNAME && phone == ADMIN_PASSWORD) {
+                    if (password == admin_password) {
                         std::cout << "Admin login successful!\n";
                         interface admin_menu(table);
                         admin_menu.show_interface();
+                    } else {
+                        std::cout << "❌ Invalid admin password.\n";
                     }
-                    else {
-                        // Debug output
-                        std::cout << "Attempting member login...\n";
-                        std::cout << "Username: " << username << "\n";
-                        std::cout << "Phone: " << phone << "\n";
-                        
-                        if (user_table.login(username, phone)) {
-                            std::cout << "Member login successful!\n";
-                            member_interface member_menu(table, username);
-                            if (member_menu.show_interface()) {
-                                continue;  // Return to login screen
-                            }
-                        } 
-                        else {
-                            std::cout << "Invalid credentials.\n";
-                            std::cout << "Please make sure you're using your registered username and phone number.\n";
-                            continue;
-                        }
+                } else if (login_type == "member") {
+                    std::cout << "Enter phone number: ";
+                    std::cin >> phone;
+                    std::cout << "Enter password: ";
+                    std::string password = get_hidden_input();
+
+                    if (user_table.login(phone, password)) {
+                        std::cout << "Member login successful!\n";
+                        member_interface member_menu(table, phone);
+                        member_menu.show_interface();
+                    } else {
+                        std::cout << "❌ Invalid member credentials.\n";
                     }
-                } catch (const std::exception& e) {
-                    std::cerr << "Error during login: " << e.what() << std::endl;
-                    continue;
+                } else {
+                    std::cout << "Invalid login type. Please enter 'admin' or 'member'.\n";
                 }
             } catch (const std::exception& e) {
-                std::cerr << "Error in main loop: " << e.what() << std::endl;
-                std::cout << "Please try again.\n";
-                continue;
+                std::cerr << "Error during login: " << e.what() << std::endl;
             }
         }
-
-        std::cout << "Goodbye!\n";
-        return 0;
     } catch (const std::exception& e) {
         std::cerr << "Critical error: " << e.what() << std::endl;
         return 1;
