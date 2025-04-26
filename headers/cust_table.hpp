@@ -173,12 +173,16 @@ std::optional<customer> cust_table::get_customer_by_id(int id) {
 }
 
 // Search for customers by name (exact match)
-std::vector<customer> cust_table::search_customers_by_name(const std::string& name) {
-    std::vector<customer> results;
-    const char* sql = "SELECT * FROM users WHERE name=?;";
+std::vector<customer> cust_table::search_customers_by_name(const std::string& search_term) {
+    // First, retrieve all customers or a broader subset from the database
+    std::vector<customer> all_customers;
+    const char* sql = "SELECT * FROM users;";  // Get all users or use a broader filter
     sqlite3_stmt* stmt;
-    if (sqlite3_prepare_v2(db, sql, -1, &stmt, nullptr) != SQLITE_OK) return results;
-    sqlite3_bind_text(stmt, 1, name.c_str(), -1, SQLITE_TRANSIENT);
+    
+    if (sqlite3_prepare_v2(db, sql, -1, &stmt, nullptr) != SQLITE_OK) 
+        return all_customers;
+    
+    // Populate the vector with customers from the database
     while (sqlite3_step(stmt) == SQLITE_ROW) {
         customer cust;
         cust.id = sqlite3_column_int(stmt, 0);
@@ -190,9 +194,37 @@ std::vector<customer> cust_table::search_customers_by_name(const std::string& na
         cust.sessions_used = sqlite3_column_int(stmt, 6);
         cust.status = reinterpret_cast<const char*>(sqlite3_column_text(stmt, 7));
         cust.total_paid = static_cast<float>(sqlite3_column_double(stmt, 8));
-        results.push_back(cust);
+        all_customers.push_back(cust);
     }
     sqlite3_finalize(stmt);
+    
+    // Now use STL algorithms to search through the retrieved data
+    std::vector<customer> results;
+    
+    // Using std::copy_if with a lambda predicate for partial name matching
+    std::copy_if(all_customers.begin(), all_customers.end(), 
+                 std::back_inserter(results),
+                 [&search_term](const customer& cust) {
+                     // Case-insensitive partial name matching
+                     std::string name_lower = cust.name;
+                     std::string search_lower = search_term;
+                     
+                     // Convert both strings to lowercase for case-insensitive comparison
+                     std::transform(name_lower.begin(), name_lower.end(), 
+                                   name_lower.begin(), ::tolower);
+                     std::transform(search_lower.begin(), search_lower.end(), 
+                                   search_lower.begin(), ::tolower);
+                     
+                     // Check if the search term is contained in the name
+                     return name_lower.find(search_lower) != std::string::npos;
+                 });
+    
+    // Sort results by name using STL sort algorithm
+    std::sort(results.begin(), results.end(),
+              [](const customer& a, const customer& b) {
+                  return a.name < b.name;
+              });
+    
     return results;
 }
 
