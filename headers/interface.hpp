@@ -9,7 +9,7 @@
 #include "sha256.h"
 #include <optional>
 #include <vector>
-#include "sqlite3.h"
+#include "../sqlite3.h"
 
 // Input validation functions (unchanged)
 bool is_valid_name(const std::string& name) {
@@ -323,111 +323,61 @@ void interface::show_options() {
 }
 
 // Admin interface loop (update display logic to use DB)
-void interface::show_interface() {
-    std::cout << "\n+===============================================================+" << std::endl;
-    std::cout << "|                    WELCOME TO CUSTOMER MANAGEMENT             |" << std::endl;
-    std::cout << "+===============================================================+\n" << std::endl;
-    // Display all customers at start
-    auto all_customers = customer_table.get_all_customers();
-    std::cout << std::left
-              << std::setw(5) << "ID"
-              << std::setw(20) << "Name"
-              << std::setw(15) << "Phone"
-              << std::setw(15) << "City"
-              << std::setw(12) << "Expiry Date"
-              << std::setw(10) << "Sessions"
-              << std::setw(10) << "Used"
-              << std::setw(10) << "Status"
-              << std::setw(10) << "Total Paid"
-              << std::endl;
-    for (const auto& cust : all_customers) {
-        std::cout << std::left
-                  << std::setw(5) << cust.id
-                  << std::setw(20) << cust.name
-                  << std::setw(15) << cust.phone
-                  << std::setw(15) << cust.city
-                  << std::setw(12) << cust.expiry_date
-                  << std::setw(10) << cust.sessions_purchased
-                  << std::setw(10) << cust.sessions_used
-                  << std::setw(10) << cust.status
-                  << std::fixed << std::setprecision(2) << cust.total_paid
-                  << std::endl;
-    }
-    int choice;
-    do {
+bool interface::show_interface() {
+    while (true) {
+        display_header();
         show_options();
+        
+        int choice;
         std::cin >> choice;
-        if (choice == 1) {
-            std::cout << "\n+===============================================================+" << std::endl;
-            std::cout << "|                    ADD NEW CUSTOMER                            |" << std::endl;
-            std::cout << "+===============================================================+\n" << std::endl;
-            handle_add_cust();
-        } else if (choice == 2) {
-            std::cout << "\n+===============================================================+" << std::endl;
-            std::cout << "|                    UPDATE CUSTOMER                             |" << std::endl;
-            std::cout << "+===============================================================+\n" << std::endl;
-            handle_update_cust();
-        } else if (choice == 3) {
-            std::cout << "\n+===============================================================+" << std::endl;
-            std::cout << "|                    DISPLAY CUSTOMERS                           |" << std::endl;
-            std::cout << "+===============================================================+\n" << std::endl;
-            std::cout << "Select number of customers to show (Enter '*' to show all): ";
-            std::string n_show;
-            std::cin >> n_show;
-            int n = -1;
-            if (n_show != "*") {
-                try { n = std::stoi(n_show); } catch (...) { n = -1; }
+        
+        switch (choice) {
+            case 1:
+                handle_add_cust();
+                break;
+            case 2:
+                handle_update_cust();
+                break;
+            case 3: {
+                // Display customer table
+                auto customers = customer_table.get_all_customers();
+                std::cout << "\n+==================================================+\n";
+                std::cout << "|                 CUSTOMER TABLE                   |\n";
+                std::cout << "+==================================================+\n\n";
+                std::cout << "| ID |       Name       |    Phone    |   Status   | Sessions Used/Total |\n";
+                std::cout << "+----+------------------+-------------+------------+--------------------+\n";
+                for (const auto& cust : customers) {
+                    std::cout << "| " << std::setw(2) << cust.id << " | " 
+                              << std::setw(16) << cust.name << " | " 
+                              << std::setw(11) << cust.phone << " | " 
+                              << std::setw(10) << cust.status << " | " 
+                              << std::setw(6) << cust.sessions_used << "/" << std::setw(6) << cust.sessions_purchased << " |\n";
+                }
+                std::cout << "+----+------------------+-------------+------------+--------------------+\n";
+                break;
             }
-            auto customers = customer_table.get_all_customers(n);
-            std::cout << std::left
-                      << std::setw(5) << "ID"
-                      << std::setw(20) << "Name"
-                      << std::setw(15) << "Phone"
-                      << std::setw(15) << "City"
-                      << std::setw(12) << "Expiry Date"
-                      << std::setw(10) << "Sessions"
-                      << std::setw(10) << "Used"
-                      << std::setw(10) << "Status"
-                      << std::setw(10) << "Total Paid"
-                      << std::endl;
-            for (const auto& cust : customers) {
-                std::cout << std::left
-                          << std::setw(5) << cust.id
-                          << std::setw(20) << cust.name
-                          << std::setw(15) << cust.phone
-                          << std::setw(15) << cust.city
-                          << std::setw(12) << cust.expiry_date
-                          << std::setw(10) << cust.sessions_purchased
-                          << std::setw(10) << cust.sessions_used
-                          << std::setw(10) << cust.status
-                          << std::fixed << std::setprecision(2) << cust.total_paid
-                          << std::endl;
+            case 4:
+                handle_delete_cust();
+                break;
+            case 5: {
+                // View total sales
+                float total_sales = customer_table.get_total_paid();
+                std::cout << "\n+==================================================+\n";
+                std::cout << "|                 TOTAL SALES                     |\n";
+                std::cout << "+==================================================+\n\n";
+                std::cout << "Total sales: $" << std::fixed << std::setprecision(2) << total_sales << "\n";
+                break;
             }
-        } else if (choice == 4) {
-            std::cout << "\n+===============================================================+" << std::endl;
-            std::cout << "|                    DELETE CUSTOMER                             |" << std::endl;
-            std::cout << "+===============================================================+\n" << std::endl;
-            handle_delete_cust();
-        } else if (choice == 5) {
-            std::cout << "\n+===============================================================+" << std::endl;
-            std::cout << "|                    TOTAL SALES REPORT                          |" << std::endl;
-            std::cout << "+===============================================================+\n" << std::endl;
-            std::cout << "Total company sales are: $" << customer_table.get_total_paid() << std::endl;
-        } else if (choice == 6) {
-            std::cout << "\n+===============================================================+" << std::endl;
-            std::cout << "|                    SEARCH CUSTOMER                             |" << std::endl;
-            std::cout << "+===============================================================+\n" << std::endl;
-            search_customer();
-        } else if (choice == 7) {
-            std::cout << "\n+===============================================================+" << std::endl;
-            std::cout << "|                    THANK YOU FOR USING                         |" << std::endl;
-            std::cout << "|                    CUSTOMER MANAGEMENT SYSTEM                   |" << std::endl;
-            std::cout << "+===============================================================+\n" << std::endl;
-            continue;
-        } else {
-            std::cout << "\n[!] ERROR: Please enter a valid number between 1 and 7 [!]" << std::endl;
+            case 6:
+                search_customer();
+                break;
+            case 7:
+                std::cout << "\nLogging out of admin interface...\n";
+                return true; // Return true to indicate logout
+            default:
+                std::cout << "\nInvalid choice. Please try again.\n";
         }
-    } while (choice != 7);
+    }
 }
 
 // Search member by name

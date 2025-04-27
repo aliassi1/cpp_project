@@ -4,7 +4,7 @@
 #include <string>
 #include <vector>
 #include <optional>
-#include <sqlite3.h>
+#include "../sqlite3.h"
 #include "customer.hpp"
 
 class cust_table {

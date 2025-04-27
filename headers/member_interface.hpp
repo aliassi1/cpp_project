@@ -1,20 +1,20 @@
 #ifndef MEMBER_INTERFACE_HPP
 #define MEMBER_INTERFACE_HPP
 
-#include "interface.h"
+#include "base_interface.h"
 #include "cust_table.h"
 #include "user_table.h"
 #include <iostream>
 #include <iomanip>
 #include <string>
 
-class member_interface {
+class member_interface : public BaseInterface {
 private:
-    cust_table& customer_table;
     UserTable user_table;
     std::string phone;
 
-    void display_header() {
+    // Override display header for member interface
+    void display_header() override {
         std::cout << "\n+==================================================+\n";
         std::cout << "|                   GYM MEMBER PORTAL               |\n";
         std::cout << "+==================================================+\n\n";
@@ -92,9 +92,10 @@ private:
 
 public:
     member_interface(cust_table& table, const std::string& phone)
-        : customer_table(table), phone(phone) {}
+        : BaseInterface(table), phone(phone) {}
 
-    bool show_interface() {
+    // Implementation of the pure virtual function
+    bool show_interface() override {
         while (true) {
             display_header();
             display_member_info();

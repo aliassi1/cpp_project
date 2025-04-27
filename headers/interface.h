@@ -3,19 +3,25 @@
 
 #include <iostream>
 #include "cust_table.h"
+#include "base_interface.h"
 
-class interface {
+class interface : public BaseInterface {
+private:
+    // Override display header for admin interface
+    void display_header() override {
+        std::cout << "\n+==================================================+\n";
+        std::cout << "|                   ADMIN INTERFACE                |\n";
+        std::cout << "+==================================================+\n\n";
+    }
+
 public:
-    // Reference to customer table - all input actions will affect this table
-    cust_table& customer_table;
-
-    // Constructor - Initializes the interface with a reference to the customer table
+    // Constructor - now calls base class constructor
     interface(cust_table& i_cust_table)
-        : customer_table(i_cust_table)
+        : BaseInterface(i_cust_table)
     {}
 
-    // Displays the main interface for managing customers
-    void show_interface();
+    // Implementation of the pure virtual function
+    bool show_interface() override;
 
     // Shows available options for the user (admin)
     void show_options();
